@@ -5,11 +5,11 @@ tests that exercise the numerics against closed-form or published results.
 
 ## Phase 1 — Item response models
 
-- [ ] Dichotomous response functions (Rasch/1PL, 2PL, 3PL, 4PL)
-- [ ] Fisher item information and test information
-- [ ] Standard error of measurement from test information
-- [ ] Numeric guards: extreme abilities, degenerate discriminations, guessing bounds
-- [ ] Closed-form validation suite
+- [x] Dichotomous response functions (Rasch/1PL, 2PL, 3PL, 4PL)
+- [x] Fisher item information and test information
+- [x] Standard error of measurement from test information
+- [x] Numeric guards: extreme abilities, degenerate discriminations, guessing bounds
+- [x] Closed-form validation suite
 
 ## Phase 2 — Ability estimation
 
