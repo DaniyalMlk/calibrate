@@ -174,3 +174,5 @@ export {
   type SessionStatus,
   type TranscriptEntry,
 } from './session/session.js';
+
+export { syntheticBank, syntheticPool, type SyntheticBankOptions } from './simulation/bank.js';
