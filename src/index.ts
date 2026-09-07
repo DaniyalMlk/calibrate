@@ -15,6 +15,14 @@ export {
 export { createRng, normalDeviate, type Rng } from './core/random.js';
 
 export {
+  gaussHermite,
+  integrate,
+  normalGaussHermiteRule,
+  normalGridRule,
+  type QuadratureRule,
+} from './core/quadrature.js';
+
+export {
   clamp,
   linspace,
   logistic,
@@ -74,5 +82,30 @@ export {
   type EstimatorName,
   type MleOptions,
 } from './estimation/mle.js';
+
+export {
+  normalPrior,
+  priorInformation,
+  priorLogDensity,
+  priorScore,
+  STANDARD_NORMAL_PRIOR,
+  type NormalPrior,
+} from './estimation/prior.js';
+
+export {
+  estimateEap,
+  estimateMap,
+  type BayesOptions,
+  type MapOptions,
+  type PosteriorEstimate,
+  type QuadratureKind,
+} from './estimation/bayes.js';
+
+export {
+  estimateWle,
+  warmCorrection,
+  weightedScore,
+  type WleOptions,
+} from './estimation/wle.js';
 
 export { simulateResponse, simulateResponses } from './simulation/respondent.js';
