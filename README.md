@@ -11,10 +11,9 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 and 3 of [ROADMAP.md](ROADMAP.md) are complete — the item model and the
-information functions, and the selection policies built on them — and phase 2 is
-complete apart from its recovery study: four ability estimators, quadrature, and
-the priors they run on. The session engine that ties them together is next.
+Phases 1, 3 and 4 of [ROADMAP.md](ROADMAP.md) are complete, and phase 2 apart
+from its recovery study. An adaptive test runs end to end today: `npm run demo`
+administers one against a synthetic bank and prints the transcript.
 
 ## Install and run
 
@@ -170,6 +169,61 @@ can be measured rather than asserted — in the test suite, `randomesque` is
 verified to lower both the peak exposure rate and the fraction of the bank left
 untouched.
 
+### Running a test
+
+```bash
+npm run demo -- --theta 0.8 --target 0.3 --max 30
+```
+
+```
+#   item                            b      a  score    theta      se  est
+----------------------------------------------------------------------------
+1   arrays-0114                 -0.31   1.50  right    0.283   0.937  eap
+2   dynamic-programming-0233    -0.37   1.69  right    0.506   0.865  eap
+...
+9   graphs-0136                  1.44   1.75  wrong    1.697   0.646  wle
+...
+30  arrays-0069                  0.14   1.54  right    1.110   0.323  wle
+
+Finished after 30 items: reached the 30-item ceiling
+Estimate 1.110 (true 0.800, error +0.310, 0.96 standard errors)
+```
+
+The `est` column is worth watching: while every answer is correct there is no
+finite likelihood estimate, so a Bayesian estimator carries the ability. At item
+9 the candidate gets one wrong, the pattern becomes mixed, and the session
+switches to the weighted likelihood estimator for the rest of the test.
+
+In code:
+
+```ts
+import {
+  AdaptiveSession,
+  ItemPool,
+  maximumInformationSelector,
+  precisionTarget,
+} from 'calibrate';
+
+const session = new AdaptiveSession({
+  pool: new ItemPool(items),
+  selector: maximumInformationSelector(),
+  stopping: precisionTarget(0.3, { minimum: 5, maximum: 30 }),
+  seed: 42,
+});
+
+while (session.status !== 'finished') {
+  const item = session.nextItem();
+  if (item === null) break;
+  session.submit(await ask(item)); // 0 or 1
+}
+
+session.snapshot(); // theta, standardError, stopReason, full transcript
+```
+
+Stopping rules are composable values — `fixedLength`, `standardErrorBelow`,
+`maximumItems`, `withMinimumLength`, `anyOf`, `allOf` — and `precisionTarget` is
+the conventional combination of a floor, a target and a ceiling.
+
 ## Design decisions
 
 **One parameterisation, not four.** The obvious alternative is a discriminated
@@ -213,6 +267,11 @@ policies receive an `Rng` in their context and are forbidden `Math.random`. A
 policy whose behaviour cannot be replayed cannot be compared against another
 one, and a session that cannot be replayed cannot be audited after a candidate
 disputes their score.
+
+**The session's status is enforced, not advisory.** Calling `submit` before
+`nextItem`, or `nextItem` twice in a row, throws. A session that quietly accepts
+a response to an item it never administered produces a transcript that cannot be
+trusted, and the only reason to keep a transcript is that it can be.
 
 **Tests check against closed forms, not against previous output.** `P(b) = 0.5`
 for the 2PL, `(1 + c) / 2` for the 3PL, an information peak of `a^2 / 4` at

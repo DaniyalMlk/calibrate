@@ -32,18 +32,20 @@ tests that exercise the numerics against closed-form or published results.
 
 ## Phase 4 — Adaptive session engine
 
-- [ ] Item pool with indexing and eligibility filters
-- [ ] Session state machine: administer, score, re-estimate, stop
-- [ ] Stopping rules: standard-error threshold, fixed length, min/max bounds
-- [ ] Deterministic, replayable session transcripts
-- [ ] Serialisable session snapshots
+- [x] Item pool with indexing and eligibility filters
+- [x] Session state machine: administer, score, re-estimate, stop
+- [x] Stopping rules: standard-error threshold, fixed length, min/max bounds
+- [x] Pluggable estimators, including a hybrid Bayesian-to-likelihood switch
+- [x] Deterministic, replayable session transcripts
+- [x] Serialisable session snapshots
 
 ## Phase 5 — Simulation harness
 
-- [ ] Simulated examinees drawn from a specified ability distribution
+- [x] Synthetic item banks with realistic parameter distributions
+- [x] Simulated examinees drawn from a specified ability distribution
 - [ ] Policy comparison: measurement precision vs. test length vs. pool exposure
 - [ ] Conditional standard error and item-exposure reporting
-- [ ] Command-line entry point for running studies
+- [x] Command-line entry point
 
 ## Phase 6 — Item bank and calibration
 

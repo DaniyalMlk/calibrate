@@ -141,3 +141,38 @@ export {
   contentProportions,
   type Blueprint,
 } from './selection/content.js';
+
+export { ItemPool } from './session/pool.js';
+
+export {
+  allOf,
+  anyOf,
+  fixedLength,
+  maximumItems,
+  precisionTarget,
+  standardErrorBelow,
+  withMinimumLength,
+  type StopReason,
+  type StoppingContext,
+  type StoppingRule,
+} from './session/stopping.js';
+
+export {
+  eapEstimator,
+  hybridEstimator,
+  mapEstimator,
+  mleEstimator,
+  wleEstimator,
+  type HybridEstimatorOptions,
+  type SessionEstimator,
+} from './session/estimator.js';
+
+export {
+  AdaptiveSession,
+  type SessionConfig,
+  type SessionSnapshot,
+  type SessionStatus,
+  type TranscriptEntry,
+} from './session/session.js';
+
+export { syntheticBank, syntheticPool, type SyntheticBankOptions } from './simulation/bank.js';
