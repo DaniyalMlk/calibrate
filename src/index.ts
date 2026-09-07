@@ -109,3 +109,35 @@ export {
 } from './estimation/wle.js';
 
 export { simulateResponse, simulateResponses } from './simulation/respondent.js';
+
+export { simpson } from './core/quadrature.js';
+
+export {
+  rankByScore,
+  type SelectionContext,
+  type Selector,
+} from './selection/selector.js';
+
+export {
+  kullbackLeiblerDivergence,
+  kullbackLeiblerSelector,
+  maximumInformationSelector,
+  type KullbackLeiblerOptions,
+} from './selection/information.js';
+
+export {
+  exposureRates,
+  randomesque,
+  rankByInformationAt,
+  sympsonHetter,
+  unusedFraction,
+  type ExposureParameters,
+  type SympsonHetterOptions,
+} from './selection/exposure.js';
+
+export {
+  blueprint,
+  contentBalanced,
+  contentProportions,
+  type Blueprint,
+} from './selection/content.js';
