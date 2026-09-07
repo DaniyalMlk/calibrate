@@ -12,8 +12,9 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 ## Status
 
 Phase 1 of [ROADMAP.md](ROADMAP.md) is complete — the item model, the response
-functions and the information functions everything else is built on — along with
-the maximum likelihood half of phase 2.
+functions and the information functions everything else is built on — and phase
+2 is complete apart from its recovery study: four ability estimators, quadrature,
+and the priors they run on.
 
 ## Install and run
 
@@ -85,6 +86,35 @@ has a log-likelihood that is monotone in ability, so it has no finite maximiser
 `boundary: 'upper'` or `'lower'` with `converged: false` and puts the edge of the
 search window in `theta`, so a caller who wants a usable number has one but is
 never told a bound is an estimate.
+
+### Which estimator to use
+
+Four are implemented, and the differences between them matter most exactly where
+an adaptive test spends its early items: short patterns, extreme candidates.
+
+| Estimator | Finite for all-correct? | Uses a prior | Where it fits |
+|---|---|---|---|
+| `estimateMle` | no | no | long tests, research |
+| `estimateEap` | yes | yes | the opening items, where nothing else is defined |
+| `estimateMap` | yes | yes | same, when the posterior mode is wanted instead of its mean |
+| `estimateWle` | yes | no | reporting a final score |
+
+```ts
+import { estimateEap, estimateMap, estimateWle, normalPrior } from 'calibrate';
+
+estimateEap(responses); // posterior mean, with posteriorSd
+estimateMap(responses, { prior: normalPrior(0, 1.2) }); // posterior mode
+estimateWle(responses); // bias-corrected, no prior
+```
+
+Maximum likelihood is biased outward: on a short test its estimates in the tails
+are systematically too extreme. EAP and MAP fix that by shrinking towards the
+prior mean, at the cost of assuming the candidate was drawn from that prior —
+which is hard to justify to the individual whose score it lowered. Warm's
+weighted likelihood estimator removes the same first-order bias without a prior,
+by weighting the likelihood so that its asymmetry cancels. For a single Rasch
+item answered correctly it returns `b + ln 3`, where maximum likelihood returns
+infinity and EAP returns something that depends on the prior you picked.
 
 ### Information
 
