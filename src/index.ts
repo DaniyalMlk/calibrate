@@ -6,6 +6,15 @@
  */
 
 export {
+  bracketSignChange,
+  safeguardedRoot,
+  type RootOptions,
+  type RootResult,
+} from './core/root.js';
+
+export { createRng, normalDeviate, type Rng } from './core/random.js';
+
+export {
   clamp,
   linspace,
   logistic,
@@ -43,8 +52,27 @@ export {
   probabilityIncorrect,
   probabilityOfResponse,
   responseDerivative,
+  responseSecondDerivative,
   standardError,
   testInformation,
   type Response,
   type ScoredResponse,
 } from './models/response.js';
+
+export {
+  expectedInformation,
+  logLikelihood,
+  observedInformation,
+  patternBoundedness,
+  scoreFunction,
+} from './estimation/likelihood.js';
+
+export {
+  estimateMle,
+  type AbilityEstimate,
+  type BoundaryFlag,
+  type EstimatorName,
+  type MleOptions,
+} from './estimation/mle.js';
+
+export { simulateResponse, simulateResponses } from './simulation/respondent.js';

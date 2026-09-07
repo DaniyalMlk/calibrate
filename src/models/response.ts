@@ -63,6 +63,21 @@ export function responseDerivative(parameters: ItemParameters, theta: number): n
 }
 
 /**
+ * Second derivative of the response function with respect to ability.
+ *
+ * `P''(theta) = (d - c) * (D a)^2 * psi * (1 - psi) * (1 - 2 psi)`.
+ *
+ * Needed for the observed information of a response pattern, which — unlike the
+ * Fisher information — depends on the answers actually given.
+ */
+export function responseSecondDerivative(parameters: ItemParameters, theta: number): number {
+  const { a, c, d } = parameters;
+  const scaledA = metricScale(parameters.metric) * a;
+  const psi = logistic(exponent(parameters, theta));
+  return (d - c) * scaledA * scaledA * psi * (1 - psi) * (1 - 2 * psi);
+}
+
+/**
  * Fisher information contributed by a single item at a given ability.
  *
  * `I(theta) = [P'(theta)]^2 / (P(theta) * (1 - P(theta)))`.

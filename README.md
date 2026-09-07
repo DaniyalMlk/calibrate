@@ -11,8 +11,9 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phase 1 of [ROADMAP.md](ROADMAP.md) is complete: the item model, the response
-functions and the information functions everything else is built on.
+Phase 1 of [ROADMAP.md](ROADMAP.md) is complete — the item model, the response
+functions and the information functions everything else is built on — along with
+the maximum likelihood half of phase 2.
 
 ## Install and run
 
@@ -66,6 +67,25 @@ The Rasch/1PL, 2PL and 3PL are this same curve with parameters pinned, so
 `rasch`, `onePL`, `twoPL`, `threePL` and `fourPL` all return the same shape and
 the engine never branches on model type.
 
+### Estimating ability
+
+```ts
+import { createRng, estimateMle, makeItem, simulateResponses, twoPL } from 'calibrate';
+
+const bank = [-2, -1, 0, 1, 2].map((b, i) => makeItem(`i-${i}`, twoPL(1.2, b)));
+const responses = simulateResponses(bank, 0.8, createRng(42));
+
+const estimate = estimateMle(responses);
+// { theta, standardError, method: 'mle', converged, boundary, iterations }
+```
+
+`boundary` is the field that matters. An all-correct or all-incorrect pattern
+has a log-likelihood that is monotone in ability, so it has no finite maximiser
+— the honest answer is "at least this high", not a number. The estimator returns
+`boundary: 'upper'` or `'lower'` with `converged: false` and puts the edge of the
+search window in `theta`, so a caller who wants a usable number has one but is
+never told a bound is an estimate.
+
 ### Information
 
 The Fisher information an item carries at a given ability is
@@ -100,6 +120,14 @@ precision; the likelihood then has no usable gradient and every estimator
 silently stops converging. Rejecting that at construction, with the offending
 field named, is far cheaper to diagnose than a session that quietly returns
 garbage.
+
+**Bracket first, then Newton.** The 3PL log-likelihood is not guaranteed to be
+unimodal, and its observed information can be negative — a correct answer to a
+hard, high-guessing item sits on a convex stretch of the surface. A raw Newton
+step there walks uphill in the wrong direction and leaves the ability range
+entirely. The estimator scans for a sign change in the score function, then runs
+Newton steps confined to that bracket, falling back to bisection whenever a step
+would escape it. Slightly slower on easy problems; it cannot diverge.
 
 **Tests check against closed forms, not against previous output.** `P(b) = 0.5`
 for the 2PL, `(1 + c) / 2` for the 3PL, an information peak of `a^2 / 4` at
