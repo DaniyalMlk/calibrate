@@ -15,9 +15,10 @@ tests that exercise the numerics against closed-form or published results.
 
 - [x] Log-likelihood, score function and observed information for a response pattern
 - [x] Maximum likelihood estimation (Newton–Raphson with bisection fallback)
-- [ ] Gauss–Hermite and fixed-grid quadrature
-- [ ] EAP and MAP estimators with posterior standard deviation
+- [x] Gauss–Hermite and fixed-grid quadrature
+- [x] EAP and MAP estimators with posterior standard deviation
 - [x] Boundary handling for all-correct and all-incorrect patterns
+- [x] Warm's weighted likelihood estimator (bias-corrected, prior-free)
 - [ ] Recovery study: bias and RMSE across the ability range
 
 ## Phase 3 — Item selection and exposure control
