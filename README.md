@@ -11,10 +11,10 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phase 1 of [ROADMAP.md](ROADMAP.md) is complete — the item model, the response
-functions and the information functions everything else is built on — and phase
-2 is complete apart from its recovery study: four ability estimators, quadrature,
-and the priors they run on.
+Phases 1 and 3 of [ROADMAP.md](ROADMAP.md) are complete — the item model and the
+information functions, and the selection policies built on them — and phase 2 is
+complete apart from its recovery study: four ability estimators, quadrature, and
+the priors they run on. The session engine that ties them together is next.
 
 ## Install and run
 
@@ -129,6 +129,47 @@ answer to this item would tell you about *this* candidate. Test information is
 the sum over administered items, and its reciprocal square root is the standard
 error of the ability estimate.
 
+### Choosing the next item
+
+```ts
+import {
+  blueprint,
+  contentBalanced,
+  maximumInformationSelector,
+  randomesque,
+} from 'calibrate';
+
+const selector = contentBalanced(
+  randomesque(maximumInformationSelector(), 5),
+  blueprint({ arrays: 0.4, graphs: 0.3, dp: 0.3 }),
+);
+
+selector.select({ candidates, theta, responses, rng }); // Item | null
+```
+
+Policies share one interface and compose by wrapping, so the trade-off between
+measurement precision and bank security is configuration rather than a rewrite.
+
+- `maximumInformationSelector` — the textbook rule: the item that would tell you
+  most about the ability you currently believe the candidate has.
+- `kullbackLeiblerSelector` — integrates over a window around the current
+  estimate instead of committing to a point. Early in a test the estimate could
+  be off by a logit, and an item that separates the whole plausible interval is
+  worth more than one that is razor-sharp at a number nobody believes yet.
+- `randomesque` — pick uniformly among the top `k`.
+- `sympsonHetter` — administer a selected item only with probability `K_i`,
+  falling through to the next candidate on rejection.
+- `contentBalanced` — restrict candidates to the domain furthest behind its
+  blueprint target, then apply the base rule inside it.
+
+Exposure control is not a nicety. An unconstrained maximum-information rule
+administers the same handful of high-discrimination items to nearly every
+candidate; those items leak, and a leaked bank is worth less than it cost to
+build. `exposureRates` and `unusedFraction` are there so the effect of a policy
+can be measured rather than asserted — in the test suite, `randomesque` is
+verified to lower both the peak exposure rate and the fraction of the bank left
+untouched.
+
 ## Design decisions
 
 **One parameterisation, not four.** The obvious alternative is a discriminated
@@ -158,6 +199,20 @@ step there walks uphill in the wrong direction and leaves the ability range
 entirely. The estimator scans for a sign change in the score function, then runs
 Newton steps confined to that bracket, falling back to bisection whenever a step
 would escape it. Slightly slower on easy problems; it cannot diverge.
+
+**Content balancing is a hard restriction, not a penalty term.** The tempting
+alternative is to subtract a content penalty from the information score, which
+produces tests that are *nearly* balanced. "Nearly" is not a claim a testing
+programme can put in a report: a test that promises 40% data structures has to
+deliver 40% data structures. Restricting the candidate set to the domain
+furthest behind target, then letting the psychometric rule choose inside it,
+makes the blueprint an invariant rather than a preference.
+
+**Every source of randomness is a seeded generator passed in.** Selection
+policies receive an `Rng` in their context and are forbidden `Math.random`. A
+policy whose behaviour cannot be replayed cannot be compared against another
+one, and a session that cannot be replayed cannot be audited after a candidate
+disputes their score.
 
 **Tests check against closed forms, not against previous output.** `P(b) = 0.5`
 for the 2PL, `(1 + c) / 2` for the 3PL, an information peak of `a^2 / 4` at

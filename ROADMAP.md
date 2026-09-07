@@ -23,11 +23,12 @@ tests that exercise the numerics against closed-form or published results.
 
 ## Phase 3 — Item selection and exposure control
 
-- [ ] Maximum Fisher information selection
-- [ ] Kullback–Leibler information selection
-- [ ] Randomesque (top-k random) exposure control
-- [ ] Sympson–Hetter exposure parameters
-- [ ] Content balancing against a blueprint
+- [x] Maximum Fisher information selection
+- [x] Kullback–Leibler information selection
+- [x] Randomesque (top-k random) exposure control
+- [x] Sympson–Hetter exposure parameters
+- [x] Content balancing against a blueprint
+- [x] Exposure-rate and bank-coverage accounting
 
 ## Phase 4 — Adaptive session engine
 

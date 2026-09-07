@@ -164,3 +164,30 @@ export function integrate(rule: QuadratureRule, f: (theta: number) => number): n
   }
   return total;
 }
+
+/**
+ * Composite Simpson's rule over `[a, b]` with `intervals` subintervals.
+ *
+ * Used for integrals over a bounded window — the Kullback–Leibler information
+ * index, in particular — where a Gaussian rule would be overkill and the
+ * integrand is smooth. `intervals` must be even; Simpson pairs subintervals to
+ * fit a parabola through each triple of points, and an odd count leaves one
+ * unpaired.
+ */
+export function simpson(
+  f: (x: number) => number,
+  a: number,
+  b: number,
+  intervals = 32,
+): number {
+  if (!Number.isInteger(intervals) || intervals < 2 || intervals % 2 !== 0) {
+    throw new RangeError(`simpson: intervals must be an even integer >= 2, received ${intervals}`);
+  }
+  if (a === b) return 0;
+  const h = (b - a) / intervals;
+  let total = f(a) + f(b);
+  for (let i = 1; i < intervals; i += 1) {
+    total += (i % 2 === 0 ? 2 : 4) * f(a + h * i);
+  }
+  return (total * h) / 3;
+}
