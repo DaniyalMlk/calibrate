@@ -10,7 +10,11 @@ import {
   contentProportions,
 } from '../src/selection/content.js';
 import {
+  exposureChiSquare,
   exposureRates,
+  exposureRatesFromIds,
+  exposureVariance,
+  overlapRate,
   randomesque,
   rankByInformationAt,
   sympsonHetter,
@@ -422,5 +426,89 @@ describe('exposure accounting', () => {
   it('reports the fraction of the bank never administered', () => {
     expect(unusedFraction(pool, [[pool[0] as Item, pool[1] as Item]])).toBeCloseTo(4 / 6, 12);
     expect(unusedFraction(pool, [pool])).toBe(0);
+  });
+});
+
+describe('exposure metrics', () => {
+  /** Rates for `used` items each administered to every examinee. */
+  function concentrated(_size: number, used: number): Map<string, number> {
+    const rates = new Map<string, number>();
+    for (let i = 0; i < used; i += 1) rates.set(`i-${i}`, 1);
+    return rates;
+  }
+
+  /** Rates for a bank of `size` items all exposed equally at `length / size`. */
+  function even(size: number, length: number): Map<string, number> {
+    const rates = new Map<string, number>();
+    for (let i = 0; i < size; i += 1) rates.set(`i-${i}`, length / size);
+    return rates;
+  }
+
+  it('counts items absent from the rate map as unexposed', () => {
+    // Two items at rate 1 in a bank of 4: mean 0.5, variance 0.25.
+    expect(exposureVariance(4, concentrated(4, 2))).toBeCloseTo(0.25, 12);
+  });
+
+  it('reports zero variance for perfectly even exposure', () => {
+    expect(exposureVariance(50, even(50, 10))).toBeCloseTo(0, 12);
+  });
+
+  it('reaches the floor overlap of L/N under perfectly even exposure', () => {
+    const size = 200;
+    const length = 25;
+    const variance = exposureVariance(size, even(size, length));
+    expect(overlapRate(size, length, variance)).toBeCloseTo(length / size, 12);
+  });
+
+  it('reaches an overlap of exactly one when every examinee sees the same form', () => {
+    // The closed-form maximum: L items at rate 1 gives S^2 = (L/N)(1 - L/N),
+    // and (N/L) * S^2 + L/N collapses to 1.
+    const size = 200;
+    const length = 25;
+    const variance = exposureVariance(size, concentrated(size, length));
+    expect(variance).toBeCloseTo((length / size) * (1 - length / size), 12);
+    expect(overlapRate(size, length, variance)).toBeCloseTo(1, 12);
+  });
+
+  it('places a realistic policy between the two extremes', () => {
+    const rates = new Map<string, number>([
+      ['i-0', 0.6],
+      ['i-1', 0.4],
+      ['i-2', 0.3],
+      ['i-3', 0.2],
+      ['i-4', 0.1],
+    ]);
+    const size = 40;
+    const length = 1.6;
+    const overlap = overlapRate(size, length, exposureVariance(size, rates));
+    expect(overlap).toBeGreaterThan(length / size);
+    expect(overlap).toBeLessThan(1);
+  });
+
+  it('reports a chi-square of zero for even exposure and its maximum for a fixed form', () => {
+    expect(exposureChiSquare(50, 10, even(50, 10))).toBeCloseTo(0, 10);
+    // Maximal concentration puts L items at rate 1, giving S^2 = (L/N)(1 - L/N)
+    // and therefore a chi-square of N(1 - L/N).
+    expect(exposureChiSquare(50, 10, concentrated(50, 10))).toBeCloseTo(50 * (1 - 10 / 50), 8);
+  });
+
+  it('agrees with the rate map built from administered ids', () => {
+    const sessions = [
+      ['i-0', 'i-1'],
+      ['i-0', 'i-2'],
+    ];
+    const fromIds = exposureRatesFromIds(sessions);
+    expect(fromIds.get('i-0')).toBeCloseTo(1, 12);
+    expect(fromIds.get('i-1')).toBeCloseTo(0.5, 12);
+    expect(fromIds.get('i-2')).toBeCloseTo(0.5, 12);
+    expect(exposureRatesFromIds([])).toEqual(new Map());
+  });
+
+  it('rejects degenerate bank sizes and lengths', () => {
+    expect(() => exposureVariance(0, new Map())).toThrow(RangeError);
+    expect(() => exposureVariance(2.5, new Map())).toThrow(RangeError);
+    expect(() => overlapRate(0, 5, 0)).toThrow(RangeError);
+    expect(() => overlapRate(10, 0, 0)).toThrow(RangeError);
+    expect(() => overlapRate(10, 5, -1)).toThrow(RangeError);
   });
 });
