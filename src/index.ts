@@ -126,7 +126,11 @@ export {
 } from './selection/information.js';
 
 export {
+  exposureChiSquare,
   exposureRates,
+  exposureRatesFromIds,
+  exposureVariance,
+  overlapRate,
   randomesque,
   rankByInformationAt,
   sympsonHetter,
@@ -176,3 +180,47 @@ export {
 } from './session/session.js';
 
 export { syntheticBank, syntheticPool, type SyntheticBankOptions } from './simulation/bank.js';
+
+export {
+  drawPopulation,
+  evenGridPopulation,
+  gridPopulation,
+  normalPopulation,
+  uniformPopulation,
+  type AbilityDistribution,
+} from './simulation/population.js';
+
+export {
+  compareStudies,
+  runStudy,
+  simulateSession,
+  type Policy,
+  type SessionOutcome,
+  type StudyOptions,
+  type StudyResult,
+} from './simulation/study.js';
+
+export {
+  conditionalReport,
+  NORMAL_95,
+  type ConditionalBin,
+  type ConditionalOptions,
+} from './simulation/conditional.js';
+
+export {
+  comparisonTable,
+  conditionalTable,
+  exposureSummary,
+  summarise,
+  type ExposureSummary,
+  type StudySummary,
+  type SummaryOptions,
+} from './simulation/report.js';
+
+export {
+  recoveryStudy,
+  recoveryTable,
+  type RecoveryOptions,
+  type RecoveryPoint,
+  type RecoveryStudy,
+} from './simulation/recovery.js';
