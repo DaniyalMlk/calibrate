@@ -118,17 +118,27 @@ export function sympsonHetter(base: Selector, options: SympsonHetterOptions): Se
   };
 }
 
-/** Observed exposure rates: the fraction of sessions in which each item appeared. */
-export function exposureRates(
-  administered: readonly (readonly Item[])[],
+/**
+ * Observed exposure rates from administered item ids: the fraction of sessions
+ * in which each item appeared.
+ *
+ * Takes ids rather than items because that is what a stored transcript holds. A
+ * study that has been serialised and read back has the ids and nothing else, and
+ * exposure accounting should not require rehydrating the whole bank to do it.
+ */
+export function exposureRatesFromIds(
+  administered: readonly (readonly string[])[],
 ): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   for (const session of administered) {
+    // An item appearing twice in one session still counts once: the rate is the
+    // fraction of candidates who saw it, which is the number that matters for
+    // both bank security and content balance.
     const seen = new Set<string>();
-    for (const item of session) {
-      if (seen.has(item.id)) continue;
-      seen.add(item.id);
-      counts.set(item.id, (counts.get(item.id) ?? 0) + 1);
+    for (const id of session) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
     }
   }
   const sessions = administered.length;
@@ -136,6 +146,13 @@ export function exposureRates(
   if (sessions === 0) return rates;
   for (const [id, count] of counts) rates.set(id, count / sessions);
   return rates;
+}
+
+/** Observed exposure rates: the fraction of sessions in which each item appeared. */
+export function exposureRates(
+  administered: readonly (readonly Item[])[],
+): ReadonlyMap<string, number> {
+  return exposureRatesFromIds(administered.map((session) => session.map((item) => item.id)));
 }
 
 /**
@@ -156,6 +173,82 @@ export function unusedFraction(
   let unused = 0;
   for (const item of bank) if (!used.has(item.id)) unused += 1;
   return unused / bank.length;
+}
+
+/**
+ * Population variance of the exposure rates across a whole bank.
+ *
+ * Items that were never administered count as rate zero. Leaving them out — the
+ * obvious shortcut, since they carry no entry in the rate map — would compute
+ * the variance among the items the policy actually likes, which is close to zero
+ * for a policy that always picks from the same narrow set, and would therefore
+ * report the worst possible bank utilisation as the best.
+ */
+export function exposureVariance(
+  bankSize: number,
+  rates: ReadonlyMap<string, number>,
+): number {
+  if (!Number.isInteger(bankSize) || bankSize < 1) {
+    throw new RangeError(`exposureVariance: bankSize must be a positive integer, received ${bankSize}`);
+  }
+  let total = 0;
+  for (const rate of rates.values()) total += rate;
+  const average = total / bankSize;
+  let acc = 0;
+  for (const rate of rates.values()) acc += (rate - average) * (rate - average);
+  // Every item absent from the map contributes (0 - average)^2.
+  acc += (bankSize - rates.size) * average * average;
+  return acc / bankSize;
+}
+
+/**
+ * Test overlap rate: the expected proportion of items two randomly chosen
+ * examinees have in common.
+ *
+ * `T = (N / L) * S^2 + L / N`, for a bank of `N` items, a mean test length of
+ * `L` and exposure-rate variance `S^2` (Chen, Ankenmann and Spray). The two
+ * ends of the range fall straight out of the formula and are worth stating,
+ * because they are what makes the number interpretable: perfectly even exposure
+ * gives `S^2 = 0` and an overlap of `L / N`, the floor; a policy that
+ * administers the same `L` items to everybody gives `S^2 = (L/N)(1 - L/N)` and
+ * an overlap of exactly 1.
+ *
+ * Overlap is the security number that matters. A bank can have a respectable
+ * maximum exposure rate and still be trivially harvestable if the items are
+ * shared between examinees in the same combinations.
+ */
+export function overlapRate(bankSize: number, meanLength: number, rateVariance: number): number {
+  if (!(bankSize > 0)) {
+    throw new RangeError(`overlapRate: bankSize must be positive, received ${bankSize}`);
+  }
+  if (!(meanLength > 0)) {
+    throw new RangeError(`overlapRate: meanLength must be positive, received ${meanLength}`);
+  }
+  if (rateVariance < 0) {
+    throw new RangeError(`overlapRate: rateVariance must be non-negative, received ${rateVariance}`);
+  }
+  return (bankSize / meanLength) * rateVariance + meanLength / bankSize;
+}
+
+/**
+ * Chi-square index of exposure skew: `sum_i (r_i - L/N)^2 / (L/N)`.
+ *
+ * Zero for perfectly even exposure and growing without bound as the policy
+ * concentrates. Reported alongside the overlap rate because it responds to a
+ * different feature of the same distribution — a bank with one badly
+ * over-exposed item and one with a broadly uneven spread can share an overlap
+ * rate but not a chi-square.
+ */
+export function exposureChiSquare(
+  bankSize: number,
+  meanLength: number,
+  rates: ReadonlyMap<string, number>,
+): number {
+  const expected = meanLength / bankSize;
+  if (!(expected > 0)) {
+    throw new RangeError('exposureChiSquare: mean length and bank size must both be positive');
+  }
+  return (bankSize * exposureVariance(bankSize, rates)) / expected;
 }
 
 /**
