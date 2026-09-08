@@ -22,7 +22,12 @@ export const STUDY_OPTIONS = {
     describe: 'Ability distribution',
     choices: ['normal', 'uniform', 'grid'],
   },
-  target: { kind: 'number', fallback: 0.3, describe: 'Standard-error target at which to stop' },
+  // A target of 0.4 rather than the demo's 0.3: against a bank with a guessing
+  // asymptote, a target of 0.3 is reached by so few examinees inside the length
+  // ceiling that every policy stops at the ceiling and the comparison shows
+  // nothing. At 0.4 the adaptive policies finish early and the length side of
+  // the trade-off becomes visible.
+  target: { kind: 'number', fallback: 0.4, describe: 'Standard-error target at which to stop' },
   min: { kind: 'integer', fallback: 5, describe: 'Minimum test length' },
   max: { kind: 'integer', fallback: 30, describe: 'Maximum test length' },
   bank: { kind: 'integer', fallback: 300, describe: 'Synthetic bank size' },
