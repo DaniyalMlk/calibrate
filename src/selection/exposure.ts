@@ -118,17 +118,27 @@ export function sympsonHetter(base: Selector, options: SympsonHetterOptions): Se
   };
 }
 
-/** Observed exposure rates: the fraction of sessions in which each item appeared. */
-export function exposureRates(
-  administered: readonly (readonly Item[])[],
+/**
+ * Observed exposure rates from administered item ids: the fraction of sessions
+ * in which each item appeared.
+ *
+ * Takes ids rather than items because that is what a stored transcript holds. A
+ * study that has been serialised and read back has the ids and nothing else, and
+ * exposure accounting should not require rehydrating the whole bank to do it.
+ */
+export function exposureRatesFromIds(
+  administered: readonly (readonly string[])[],
 ): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   for (const session of administered) {
+    // An item appearing twice in one session still counts once: the rate is the
+    // fraction of candidates who saw it, which is the number that matters for
+    // both bank security and content balance.
     const seen = new Set<string>();
-    for (const item of session) {
-      if (seen.has(item.id)) continue;
-      seen.add(item.id);
-      counts.set(item.id, (counts.get(item.id) ?? 0) + 1);
+    for (const id of session) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
     }
   }
   const sessions = administered.length;
@@ -136,6 +146,13 @@ export function exposureRates(
   if (sessions === 0) return rates;
   for (const [id, count] of counts) rates.set(id, count / sessions);
   return rates;
+}
+
+/** Observed exposure rates: the fraction of sessions in which each item appeared. */
+export function exposureRates(
+  administered: readonly (readonly Item[])[],
+): ReadonlyMap<string, number> {
+  return exposureRatesFromIds(administered.map((session) => session.map((item) => item.id)));
 }
 
 /**
