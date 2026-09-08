@@ -23,7 +23,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "demo": "tsx src/cli/main.ts demo"
+    "demo": "tsx src/cli/main.ts demo",
+    "study": "tsx src/cli/main.ts study",
+    "recover": "tsx src/cli/main.ts recover"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
