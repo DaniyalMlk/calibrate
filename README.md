@@ -11,9 +11,11 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1, 3 and 4 of [ROADMAP.md](ROADMAP.md) are complete, and phase 2 apart
-from its recovery study. An adaptive test runs end to end today: `npm run demo`
-administers one against a synthetic bank and prints the transcript.
+Phases 1 to 5 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+end to end today — `npm run demo` administers one against a synthetic bank and
+prints the transcript — and `npm run study` compares selection policies over a
+simulated population. Item calibration from response data (phase 6) and the web
+interface (phase 7) are not built yet.
 
 ## Install and run
 
@@ -22,6 +24,10 @@ npm install
 npm test          # vitest
 npm run typecheck # tsc --noEmit, including the test files
 npm run build     # emits dist/ with declarations
+
+npm run demo      # one adaptive session, with its transcript
+npm run study     # selection policies compared over a simulated population
+npm run recover   # how well each estimator recovers a known ability
 ```
 
 ## What is here today
@@ -224,6 +230,108 @@ Stopping rules are composable values — `fixedLength`, `standardErrorBelow`,
 `maximumItems`, `withMinimumLength`, `anyOf`, `allOf` — and `precisionTarget` is
 the conventional combination of a floor, a target and a ceiling.
 
+### Comparing policies
+
+One session tells you nothing about a policy. `npm run study` runs a whole
+simulated population through several of them against the same bank and the same
+examinees, and prints what they cost each other:
+
+```
+policy                  items    bias    rmse      se   calib   cover      r   max_x  overlap  unused
+-----------------------------------------------------------------------------------------------------
+max-information          17.1  -0.021   0.430   0.411    0.95   0.965  0.927   1.000    0.389   0.643
+kullback-leibler         17.1  -0.024   0.432   0.410    0.95   0.965  0.927   1.000    0.391   0.643
+randomesque-5            18.1  -0.035   0.445   0.404    0.91   0.930  0.923   0.755    0.355   0.610
+balanced+randomesque     20.1  -0.018   0.457   0.417    0.91   0.940  0.923   0.585    0.290   0.490
+fixed-30                 30.0  -0.023   0.346   0.333    0.96   0.965  0.954   1.000    0.426   0.543
+```
+
+Two things fall out of that table. The adaptive policies reach a standard error
+of 0.4 in about 17 items where the fixed form takes 30 — and the fixed form buys
+its extra precision (RMSE 0.35 against 0.43) with those thirteen extra items,
+not with anything cleverer. And exposure control is nearly free: content
+balancing on top of randomesque cuts the peak exposure rate from 1.00 to 0.59
+and the overlap between two candidates' tests from 0.39 to 0.29, for three extra
+items and no measurable loss of precision.
+
+The columns worth knowing:
+
+- **calib** — the standard error the test reported, divided by the error it
+  actually made. One is honest; below one means the test is promising a
+  precision it does not have, which is the failure that matters when a cut score
+  is applied to the result.
+- **cover** — the fraction of candidates whose true ability fell inside their
+  reported 95% interval.
+- **overlap** — the expected proportion of items two randomly chosen candidates
+  saw in common, `(N/L)S² + L/N` for a bank of `N` items and tests of length
+  `L`. It ranges from `L/N` under perfectly even exposure to exactly 1 when
+  everyone sits the same form, and it is the number to watch for bank security:
+  a bank can have a respectable peak exposure rate and still be trivially
+  harvestable if the items travel together.
+
+Marginal numbers hide the thing a bank owner most needs to see, so every study
+also reports conditionally on true ability:
+
+```
+max-information — conditional on true ability
+ability              n    bias    rmse      se   calib   cover   items
+----------------------------------------------------------------------
+[-3.0, -2.0)         5  -0.212   1.436   0.992    0.69   0.800    25.8
+[-2.0, -1.0)        27   0.122   0.346   0.397    1.15   0.963    21.9
+[-1.0, 0.0)         67  -0.005   0.398   0.395    0.99   0.970    15.1
+[0.0, 1.0)          61  -0.092   0.349   0.394    1.13   0.967    14.7
+[1.0, 2.0)          31   0.005   0.311   0.394    1.27   1.000    18.9
+[2.0, 3.0)           9  -0.076   0.519   0.413    0.80   0.889    24.0
+  107 of 300 items used, 29 above an exposure rate of 0.2, overlap 0.389
+```
+
+The shape of that column of test lengths is the bank's own shape: candidates
+between -1 and 1 reach the target in about 15 items, and candidates below -2
+take 26 and still finish with a standard error of 0.99 and a calibration of
+0.69. The bank is thin down there, and the marginal RMSE of 0.43 says nothing
+about it.
+
+Binning is on the *generating* ability, never on the estimate. Conditioning on
+the estimate is a classic way to make a biased test look unbiased: the
+candidates a test overestimates are exactly the ones it moves into a higher bin,
+so the error gets smuggled into the conditioning variable and disappears.
+
+### Checking the estimators
+
+`npm run recover` answers the prior question — whether the estimators recover an
+ability that is known, before any of them is trusted to estimate one that is
+not. It simulates a fixed form many times at each of a set of abilities:
+
+```
+eap — mean absolute bias 0.6593, pooled RMSE 0.9384
+   theta     n     mean    bias    rmse      se   calib   cover   bound
+-----------------------------------------------------------------------
+   -3.00   200   -1.430   1.570   1.612   0.616    0.38   0.175   0.000
+   -2.00   200   -1.216   0.784   0.887   0.601    0.68   0.825   0.000
+   -1.00   200   -0.774   0.226   0.481   0.581    1.21   0.980   0.000
+    0.00   200   -0.002  -0.002   0.467   0.552    1.18   0.990   0.000
+    1.00   200    0.757  -0.243   0.522   0.553    1.06   0.950   0.000
+    2.00   200    1.376  -0.624   0.748   0.581    0.78   0.860   0.000
+    3.00   200    1.835  -1.165   1.224   0.621    0.51   0.570   0.000
+```
+
+That is shrinkage, stated numerically. A candidate at 3.0 is reported at 1.84 on
+average, and only 57% of them have their true ability inside their own 95%
+interval, because the prior is pulling every estimate towards the population it
+assumes they came from. On the same form Warm's estimator has a mean absolute
+bias of 0.14 against EAP's 0.66 and MAP's 0.71. The test suite asserts these
+relationships rather than the numbers: shrinkage towards the prior mean, growing
+with distance from it; Warm's estimator less than half as biased as either
+Bayesian estimator; maximum likelihood leaving 29% of the patterns at `theta =
+-3` with no interior estimate at all, where the others resolve every one.
+
+The `bound` column is why the tails of the maximum likelihood table are not
+directly comparable to the others. Patterns with no interior maximum are
+excluded from the row rather than folded in at the edge of the search window;
+including them would make an estimator's apparent bias depend on how wide its
+window happens to be. The fraction excluded is reported instead, which carries
+the same information without pretending a bound is an estimate.
+
 ## Design decisions
 
 **One parameterisation, not four.** The obvious alternative is a discriminated
@@ -272,6 +380,21 @@ disputes their score.
 `nextItem`, or `nextItem` twice in a row, throws. A session that quietly accepts
 a response to an item it never administered produces a transcript that cannot be
 trusted, and the only reason to keep a transcript is that it can be.
+
+**Every examinee in a study is seeded from their index, not from a shared
+stream.** The obvious implementation threads one generator through the loop,
+which makes examinee `i` depend on how much randomness the `i - 1` before them
+consumed — and that, in turn, depends on the policy under test. A comparison
+built that way is not a controlled comparison, because the examinees differ
+between the arms. Deriving each examinee's seed from their index makes them
+identical across policies and identical whether the study runs ten of them or
+ten thousand, which is asserted in the test suite rather than assumed.
+
+**Boundary patterns are excluded from a recovery row, not clamped into it.** An
+all-correct pattern has no maximum likelihood estimate; reporting the edge of the
+search window as though it were one would make the estimator's measured bias a
+function of how wide that window was configured to be. The row reports the
+fraction excluded instead, which says the same thing without inventing a number.
 
 **Tests check against closed forms, not against previous output.** `P(b) = 0.5`
 for the 2PL, `(1 + c) / 2` for the 3PL, an information peak of `a^2 / 4` at
