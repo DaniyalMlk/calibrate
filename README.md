@@ -11,11 +11,11 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 5 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+Phases 1 to 6 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
 end to end today — `npm run demo` administers one against a synthetic bank and
-prints the transcript — and `npm run study` compares selection policies over a
-simulated population. Item calibration from response data (phase 6) and the web
-interface (phase 7) are not built yet.
+prints the transcript — `npm run study` compares selection policies over a
+simulated population, and `npm run fit` estimates item parameters from a matrix
+of responses. The web interface (phase 7) is not built yet.
 
 ## Install and run
 
@@ -28,6 +28,7 @@ npm run build     # emits dist/ with declarations
 npm run demo      # one adaptive session, with its transcript
 npm run study     # selection policies compared over a simulated population
 npm run recover   # how well each estimator recovers a known ability
+npm run fit       # item parameters calibrated from a matrix of responses
 ```
 
 ## What is here today
@@ -332,6 +333,125 @@ including them would make an estimator's apparent bias depend on how wide its
 window happens to be. The fraction excluded is reported instead, which carries
 the same information without pretending a bound is an estimate.
 
+### Calibrating a bank
+
+Everything above assumes the item parameters are known. They are not: a bank
+starts as a matrix of who answered what, and the parameters have to be estimated
+from it.
+
+```bash
+npm run fit -- --bank 12 --respondents 800 --target 0.9
+```
+
+```
+Source: simulated: 800 respondents, 12 rasch items
+Model: rasch, converged in 8 iterations (largest change 2.06e-5)
+Screened: 10 respondents and 0 items removed over 2 passes; 790 respondents and 12 items calibrated
+
+item                     p+       b   se(b)      a   infit  outfit   t(in)   flag
+-----------------------------------------------------------------------------------
+arrays-0000           0.759  -1.977   0.092   1.00   0.969   0.948   -0.66
+graphs-0001           0.533  -0.730   0.083   1.00   1.009   1.039    0.27
+dynamic-programming-0002  0.390  -0.013   0.085   1.00   0.952   0.966   -1.31
+arrays-0003           0.242   0.832   0.094   1.00   0.918   0.887   -1.75
+graphs-0004           0.085   2.245   0.131   1.00   0.908   0.772   -1.03
+...
+```
+
+In code:
+
+```ts
+import { calibrate, itemFit, parseResponseCsv, toItems } from 'calibrate';
+
+const matrix = parseResponseCsv(csv, { index: true });
+const result = calibrate(matrix, { model: 'rasch' });
+const fit = itemFit(matrix, result);
+
+result.items; // id, difficulty, standard error, proportion correct
+fit.misfitting; // the items that do not behave the way the model says
+toItems(result); // ready to hand to an ItemPool
+```
+
+Estimation alternates: hold the item parameters fixed and estimate every
+ability, hold the abilities fixed and estimate every item, repeat until neither
+moves. Each half is a well-behaved one- or two-parameter problem even though the
+joint problem over thousands of parameters is not. On a simulated 200-item Rasch
+bank answered by 800 people it converges in six iterations and recovers the
+generating difficulties with a correlation of 0.997 and a mean absolute error of
+0.078.
+
+Three details do most of the work:
+
+**Extreme respondents and items have to go first, and removal cascades.** A
+person who answered everything correctly has no finite ability estimate, only a
+lower bound; an item everybody passed has the same problem. Joint estimation
+with either present does not fail loudly, it walks off towards infinity dragging
+the scale with it. And screening cannot be a single sweep: dropping the strongest
+candidates can leave an item nobody remaining answered correctly, which then has
+to go too, which can make another person extreme. `screenExtremes` loops until a
+pass removes nothing and reports what went, why, and on which pass.
+
+**The scale has to be pinned every cycle.** Adding a constant to every ability
+and every difficulty leaves the likelihood exactly unchanged, and under the 2PL
+so does stretching the ability scale while shrinking the discriminations to
+match. Left alone the estimates slide along those directions forever and the
+convergence test never fires — not because the fit is improving but because the
+parameters are moving along a ridge. Under Rasch the mean difficulty is fixed at
+zero; under the 2PL, where both the location and the unit are free, the
+abilities are standardised to mean zero and unit variance instead.
+
+**The estimates are biased, and the bias has a known correction.** Because the
+number of person parameters grows with the sample, the usual consistency
+argument does not apply and joint difficulty estimates come out inflated away
+from zero. Multiplying them by `(L - 1) / L` for a test of `L` items is the
+classical fix; on the bank above it takes the mean absolute error from 0.068 to
+0.060, and at 150 respondents from 0.163 to 0.152. That is a Rasch result, so it
+is applied by default only there — under the 2PL the discriminations absorb part
+of the same bias and the correction measurably overshoots.
+
+### Finding items that do not fit
+
+A calibrated parameter is not the same as a working item. Infit and outfit mean
+squares compare each item's observed responses against what the model predicted:
+both are means of squared standardised residuals, differing in whether the
+residuals are weighted by their own variance. Infit weights them, which damps
+the responses of candidates far from the item's difficulty — where a surprise is
+cheap — and emphasises those near it, where the item is doing its work. Outfit
+does not, which makes it the more sensitive of the two to a single very
+unexpected answer.
+
+In a suite test, thirty Rasch items are simulated to fit, one is answered at
+random, and one has its key reversed. The two planted items are the only two
+flagged; the miskeyed one comes out at an outfit of 2.17 against the random
+item's 1.38, because reversing a key does not add noise so much as invert the
+relationship between ability and success.
+
+The standardised deviates use the Wilson–Hilferty cube-root transform, because a
+mean square is a ratio of chi-squares and strongly right-skewed: 1.3 is
+unremarkable on thirty responses and damning on three thousand, and only the
+standardised form says which situation you are in.
+
+### Where a bank cannot measure
+
+```ts
+import { bankHealth } from 'calibrate';
+
+const health = bankHealth(items, { target: 0.3 });
+health.gaps; // [{ from: 1.75, to: 3.00, worstStandardError: 0.48 }]
+```
+
+The question before writing more items is not how many you have but where the
+next ones should sit. `bankHealth` walks the ability range, reports the test
+information and standard error the whole bank could reach at each point, and
+collapses the failures into intervals. Reporting "nothing above 1.75" is an
+item-writing brief; twelve consecutive failing rows of a table is a puzzle.
+
+The standard error is computed as though every item in the bank were
+administered, which is deliberately optimistic — no candidate sees the whole
+bank. That is what makes it a sufficient screen: a region the full bank cannot
+measure to target is one no adaptive test over that bank will ever measure to
+target.
+
 ## Design decisions
 
 **One parameterisation, not four.** The obvious alternative is a discriminated
@@ -395,6 +515,13 @@ all-correct pattern has no maximum likelihood estimate; reporting the edge of th
 search window as though it were one would make the estimator's measured bias a
 function of how wide that window was configured to be. The row reports the
 fraction excluded instead, which says the same thing without inventing a number.
+
+**Recovery is judged on centred parameters, not raw ones.** Joint estimation
+identifies the parameters only up to the origin of the scale, and the calibrator
+picks that origin by convention. A generating bank has no reason to share it, so
+comparing raw numbers reports the difference between two conventions as though
+it were estimation error — on a short bank that difference dominates everything
+else, and it is not an error at all.
 
 **Tests check against closed forms, not against previous output.** `P(b) = 0.5`
 for the 2PL, `(1 + c) / 2` for the 3PL, an information peak of `a^2 / 4` at
