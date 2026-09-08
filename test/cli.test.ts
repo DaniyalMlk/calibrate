@@ -83,3 +83,116 @@ describe('cli', () => {
     expect(err).toContain('must not exceed');
   });
 });
+
+describe('cli option parsing', () => {
+  it('rejects a non-integer where an integer is required', () => {
+    expect(capture(['demo', '--max', '12.5']).err).toContain('needs an integer');
+  });
+
+  it('rejects a value outside the choices a string option allows', () => {
+    const { code, err } = capture(['study', '--population', 'lognormal']);
+    expect(code).toBe(1);
+    expect(err).toContain('must be one of: normal, uniform, grid');
+  });
+
+  it('rejects a bare argument that is not a flag', () => {
+    expect(capture(['demo', '12']).err).toContain('unexpected argument "12"');
+  });
+
+  it('lists every command and its options in the usage text', () => {
+    const { out } = capture(['--help']);
+    expect(out).toContain('calibrate demo');
+    expect(out).toContain('calibrate study');
+    expect(out).toContain('calibrate recover');
+    expect(out).toContain('--replications <integer>');
+  });
+});
+
+describe('study command', () => {
+  it('compares every policy over a simulated population', () => {
+    const { code, out } = capture([
+      'study',
+      '--examinees',
+      '12',
+      '--bank',
+      '60',
+      '--max',
+      '10',
+      '--bins',
+      '4',
+    ]);
+    expect(code).toBe(0);
+    expect(out).toContain('Population: normal(0, 1), 12 examinees per policy');
+    expect(out).toContain('max-information');
+    expect(out).toContain('kullback-leibler');
+    expect(out).toContain('balanced+randomesque');
+    expect(out).toContain('fixed-10');
+    expect(out).toContain('conditional on true ability');
+    expect(out).toContain('items used');
+  });
+
+  it('accepts each population it offers', () => {
+    for (const population of ['normal', 'uniform', 'grid']) {
+      const { code, out } = capture([
+        'study',
+        '--population',
+        population,
+        '--examinees',
+        '6',
+        '--bank',
+        '40',
+        '--max',
+        '6',
+      ]);
+      expect(code).toBe(0);
+      expect(out).toContain(`Population: ${population}`);
+    }
+  });
+
+  it('is deterministic for a given seed', () => {
+    const argv = ['study', '--examinees', '8', '--bank', '40', '--max', '8', '--seed', '5'];
+    expect(capture(argv).out).toBe(capture(argv).out);
+  });
+});
+
+describe('recover command', () => {
+  it('reports every estimator by default', () => {
+    const { code, out } = capture([
+      'recover',
+      '--length',
+      '8',
+      '--points',
+      '3',
+      '--replications',
+      '20',
+    ]);
+    expect(code).toBe(0);
+    expect(out).toContain('Form: 8 items, 20 replications');
+    for (const name of ['mle', 'eap', 'map', 'wle', 'hybrid']) {
+      expect(out).toContain(`\n${name} — mean absolute bias`);
+    }
+  });
+
+  it('reports a single estimator when asked for one', () => {
+    const { code, out } = capture([
+      'recover',
+      '--estimator',
+      'wle',
+      '--length',
+      '8',
+      '--points',
+      '3',
+      '--replications',
+      '20',
+    ]);
+    expect(code).toBe(0);
+    expect(out).toContain('wle — mean absolute bias');
+    expect(out).not.toContain('eap — mean absolute bias');
+  });
+
+  it('rejects a non-positive ability range', () => {
+    const { code, err } = capture(['recover', '--range', '0']);
+    expect(code).toBe(1);
+    expect(err).toContain('must be positive');
+  });
+});
