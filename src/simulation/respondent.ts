@@ -1,4 +1,5 @@
-import type { Rng } from '../core/random.js';
+import { createRng, type Rng } from '../core/random.js';
+import { ResponseMatrix, type Cell } from '../calibration/matrix.js';
 import type { Item } from '../models/item.js';
 import { probabilityCorrect, type Response, type ScoredResponse } from '../models/response.js';
 
@@ -21,4 +22,33 @@ export function simulateResponses(
   rng: Rng,
 ): ScoredResponse[] {
   return items.map((item) => ({ item, response: simulateResponse(item, trueTheta, rng) }));
+}
+
+/**
+ * Simulate a whole response matrix: every examinee answering every item.
+ *
+ * The instrument for checking calibration. Generating data from known
+ * parameters and asking whether the calibrator recovers them is the only way to
+ * separate a calibration bug from a bank that genuinely fits badly — with real
+ * data the two are indistinguishable, because the true parameters are exactly
+ * what is unknown.
+ */
+export function simulateMatrix(
+  items: readonly Item[],
+  abilities: readonly number[],
+  seed = 1,
+): ResponseMatrix {
+  if (items.length === 0) throw new RangeError('simulateMatrix: at least one item is required');
+  if (abilities.length === 0) {
+    throw new RangeError('simulateMatrix: at least one examinee is required');
+  }
+  const rng = createRng(seed);
+  const rows: Cell[][] = abilities.map((theta) =>
+    items.map((item) => simulateResponse(item, theta, rng) as Cell),
+  );
+  return new ResponseMatrix({
+    rows,
+    itemIds: items.map((item) => item.id),
+    personIds: abilities.map((_, index) => `p-${index}`),
+  });
 }

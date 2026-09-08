@@ -50,10 +50,12 @@ tests that exercise the numerics against closed-form or published results.
 
 ## Phase 6 — Item bank and calibration
 
-- [ ] Response-matrix ingest
-- [ ] Joint maximum likelihood calibration of item parameters
-- [ ] Item fit statistics (infit/outfit mean squares)
-- [ ] Bank health report: information coverage gaps across the ability range
+- [x] Response-matrix ingest, from arrays or CSV, with explicit missing responses
+- [x] Iterative screening of extreme respondents and items
+- [x] Joint maximum likelihood calibration of item parameters (Rasch and 2PL)
+- [x] Scale identification and the joint-estimation bias correction
+- [x] Item fit statistics (infit/outfit mean squares and standardised deviates)
+- [x] Bank health report: information coverage gaps across the ability range
 
 ## Phase 7 — Web interface
 
