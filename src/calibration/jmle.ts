@@ -78,9 +78,14 @@ export function toItems(result: CalibrationResult): Item[] {
  * under the 2PL so does multiplying the ability scale by a constant while
  * dividing the discriminations by it. Left alone, the estimates drift along
  * those directions forever and the convergence test never fires — not because
- * the fit is improving but because the parameters are sliding along a ridge. So
- * the difficulties are centred at zero after every item step, and under the 2PL
- * the ability scale is standardised as well.
+ * the fit is improving but because the parameters are sliding along a ridge.
+ *
+ * Under the Rasch model the mean difficulty is fixed at zero, which is enough:
+ * only the location is free. Under the 2PL both the location and the unit are
+ * free, so the constraint is placed on the ability distribution instead — mean
+ * zero and unit variance — and the item parameters are transformed to match.
+ * The difficulties then land near zero as a consequence rather than by
+ * construction.
  *
  * **The estimates are biased, and the bias is known.** Because the number of
  * person parameters grows with the sample, the usual consistency argument does
