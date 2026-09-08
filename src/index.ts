@@ -108,7 +108,53 @@ export {
   type WleOptions,
 } from './estimation/wle.js';
 
-export { simulateResponse, simulateResponses } from './simulation/respondent.js';
+export {
+  simulateMatrix,
+  simulateResponse,
+  simulateResponses,
+} from './simulation/respondent.js';
+
+export {
+  MISSING,
+  parseResponseCsv,
+  ResponseMatrix,
+  type Cell,
+  type ParseCsvOptions,
+  type ResponseMatrixInit,
+} from './calibration/matrix.js';
+
+export {
+  screenExtremes,
+  type Exclusion,
+  type ExclusionReason,
+  type ScreenResult,
+} from './calibration/screen.js';
+
+export {
+  calibrate,
+  toItems,
+  type CalibratedItem,
+  type CalibrationModel,
+  type CalibrationOptions,
+  type CalibrationResult,
+} from './calibration/jmle.js';
+
+export {
+  itemFit,
+  standardiseMeanSquare,
+  type FitOptions,
+  type FitReport,
+  type ItemFit,
+} from './calibration/fit.js';
+
+export {
+  bankHealth,
+  healthTable,
+  type BankHealth,
+  type BankHealthOptions,
+  type CoverageGap,
+  type CoveragePoint,
+} from './calibration/health.js';
 
 export { simpson } from './core/quadrature.js';
 
