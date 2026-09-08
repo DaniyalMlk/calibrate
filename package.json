@@ -25,7 +25,8 @@
     "test:watch": "vitest",
     "demo": "tsx src/cli/main.ts demo",
     "study": "tsx src/cli/main.ts study",
-    "recover": "tsx src/cli/main.ts recover"
+    "recover": "tsx src/cli/main.ts recover",
+    "fit": "tsx src/cli/main.ts fit"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
