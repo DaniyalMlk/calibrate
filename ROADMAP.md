@@ -19,7 +19,7 @@ tests that exercise the numerics against closed-form or published results.
 - [x] EAP and MAP estimators with posterior standard deviation
 - [x] Boundary handling for all-correct and all-incorrect patterns
 - [x] Warm's weighted likelihood estimator (bias-corrected, prior-free)
-- [ ] Recovery study: bias and RMSE across the ability range
+- [x] Recovery study: bias and RMSE across the ability range
 
 ## Phase 3 — Item selection and exposure control
 
@@ -43,8 +43,9 @@ tests that exercise the numerics against closed-form or published results.
 
 - [x] Synthetic item banks with realistic parameter distributions
 - [x] Simulated examinees drawn from a specified ability distribution
-- [ ] Policy comparison: measurement precision vs. test length vs. pool exposure
-- [ ] Conditional standard error and item-exposure reporting
+- [x] Test-overlap rate and exposure chi-square
+- [x] Policy comparison: measurement precision vs. test length vs. pool exposure
+- [x] Conditional standard error and item-exposure reporting
 - [x] Command-line entry point
 
 ## Phase 6 — Item bank and calibration
