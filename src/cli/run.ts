@@ -1,4 +1,5 @@
 import { DEMO_OPTIONS, runDemo } from './demo.js';
+import { FIT_OPTIONS, runFit } from './fit.js';
 import { describeOptions, type OptionSpecs } from './options.js';
 import { RECOVER_OPTIONS, runRecover } from './recover.js';
 import { STUDY_OPTIONS, runStudyCommand } from './study.js';
@@ -24,6 +25,11 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     summary: 'Measure how well an estimator recovers ability across the range',
     options: RECOVER_OPTIONS,
     run: runRecover,
+  },
+  fit: {
+    summary: 'Calibrate item parameters from responses, then report fit and bank health',
+    options: FIT_OPTIONS,
+    run: runFit,
   },
 };
 
