@@ -24,6 +24,7 @@ export {
 
 export {
   clamp,
+  correlation,
   linspace,
   logistic,
   logisticDerivative,

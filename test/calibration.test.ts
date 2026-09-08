@@ -1,28 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../src/core/random.js';
-import { linspace, mean } from '../src/core/numeric.js';
+import { correlation, linspace, mean } from '../src/core/numeric.js';
 import { makeItem, onePL, twoPL, type Item } from '../src/models/item.js';
 import { probabilityCorrect } from '../src/models/response.js';
 import { itemFit, standardiseMeanSquare } from '../src/calibration/fit.js';
 import { calibrate, toItems } from '../src/calibration/jmle.js';
 import { MISSING, ResponseMatrix, type Cell } from '../src/calibration/matrix.js';
 import { simulateMatrix } from '../src/simulation/respondent.js';
-
-function correlation(xs: readonly number[], ys: readonly number[]): number {
-  const mx = mean(xs);
-  const my = mean(ys);
-  let sxy = 0;
-  let sxx = 0;
-  let syy = 0;
-  for (let i = 0; i < xs.length; i += 1) {
-    const dx = (xs[i] as number) - mx;
-    const dy = (ys[i] as number) - my;
-    sxy += dx * dy;
-    sxx += dx * dx;
-    syy += dy * dy;
-  }
-  return sxy / Math.sqrt(sxx * syy);
-}
 
 function meanAbsoluteError(xs: readonly number[], ys: readonly number[]): number {
   let acc = 0;

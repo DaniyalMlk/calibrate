@@ -1,4 +1,4 @@
-import { mean } from '../core/numeric.js';
+import { correlation, mean } from '../core/numeric.js';
 import {
   exposureChiSquare,
   exposureRatesFromIds,
@@ -59,24 +59,6 @@ export interface StudySummary {
 export interface SummaryOptions extends ConditionalOptions {
   /** Exposure rate above which an item counts as over-exposed. Default 0.2. */
   readonly exposureTarget?: number;
-}
-
-function correlation(xs: readonly number[], ys: readonly number[]): number {
-  const mx = mean(xs);
-  const my = mean(ys);
-  let sxy = 0;
-  let sxx = 0;
-  let syy = 0;
-  for (let i = 0; i < xs.length; i += 1) {
-    const dx = (xs[i] as number) - mx;
-    const dy = (ys[i] as number) - my;
-    sxy += dx * dy;
-    sxx += dx * dx;
-    syy += dy * dy;
-  }
-  // A study run at a single ability point has no spread to correlate against.
-  if (sxx === 0 || syy === 0) return Number.NaN;
-  return sxy / Math.sqrt(sxx * syy);
 }
 
 /** Exposure statistics for a completed study. */

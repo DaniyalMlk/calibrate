@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { mean } from '../core/numeric.js';
+import { correlation, mean } from '../core/numeric.js';
 import { itemFit } from '../calibration/fit.js';
 import { calibrate, toItems, type CalibrationModel, type CalibrationResult } from '../calibration/jmle.js';
 import { parseResponseCsv, ResponseMatrix } from '../calibration/matrix.js';
@@ -91,22 +91,16 @@ function recovery(result: CalibrationResult, truth: readonly Item[]): string {
 
   const me = mean(estimates);
   const ma = mean(actual);
-  let sxy = 0;
-  let sxx = 0;
-  let syy = 0;
+  const centredEstimates = estimates.map((value) => value - me);
+  const centredActual = actual.map((value) => value - ma);
   let absolute = 0;
-  for (let i = 0; i < estimates.length; i += 1) {
-    const dx = (estimates[i] as number) - me;
-    const dy = (actual[i] as number) - ma;
-    sxy += dx * dy;
-    sxx += dx * dx;
-    syy += dy * dy;
-    absolute += Math.abs(dx - dy);
+  for (let i = 0; i < centredEstimates.length; i += 1) {
+    absolute += Math.abs((centredEstimates[i] as number) - (centredActual[i] as number));
   }
 
   return (
     `Recovery against the generating difficulties, both centred: ` +
-    `correlation ${(sxy / Math.sqrt(sxx * syy)).toFixed(4)}, ` +
+    `correlation ${correlation(centredEstimates, centredActual).toFixed(4)}, ` +
     `mean absolute error ${(absolute / estimates.length).toFixed(4)}\n`
   );
 }

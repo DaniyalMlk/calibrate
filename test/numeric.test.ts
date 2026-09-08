@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clamp,
+  correlation,
   linspace,
   logistic,
   logisticDerivative,
@@ -109,5 +110,34 @@ describe('requireFinite', () => {
     expect(() => requireFinite(Number.NaN, 'difficulty')).toThrow(/difficulty/);
     expect(() => requireFinite(Number.POSITIVE_INFINITY, 'a')).toThrow(RangeError);
     expect(requireFinite(1.5, 'a')).toBe(1.5);
+  });
+});
+
+describe('correlation', () => {
+  it('is one for a perfect increasing relationship and minus one for its reverse', () => {
+    expect(correlation([1, 2, 3, 4], [2, 4, 6, 8])).toBeCloseTo(1, 12);
+    expect(correlation([1, 2, 3, 4], [8, 6, 4, 2])).toBeCloseTo(-1, 12);
+  });
+
+  it('is invariant to shifting and positive rescaling', () => {
+    const xs = [0.3, -1.2, 2.5, 0.9, -0.4];
+    const ys = [1.1, 0.2, 2.9, 1.4, 0.6];
+    const base = correlation(xs, ys);
+    expect(correlation(xs.map((x) => 3 * x + 7), ys)).toBeCloseTo(base, 12);
+    expect(correlation(xs, ys.map((y) => 0.5 * y - 2))).toBeCloseTo(base, 12);
+  });
+
+  it('is zero for an exactly symmetric pairing', () => {
+    expect(correlation([-1, 0, 1], [1, 0, 1])).toBeCloseTo(0, 12);
+  });
+
+  it('reports NaN rather than a number when a series has no variation', () => {
+    expect(Number.isNaN(correlation([1, 1, 1], [1, 2, 3]))).toBe(true);
+    expect(Number.isNaN(correlation([1, 2, 3], [4, 4, 4]))).toBe(true);
+  });
+
+  it('rejects mismatched lengths and empty input', () => {
+    expect(() => correlation([1, 2], [1])).toThrow(RangeError);
+    expect(() => correlation([], [])).toThrow(RangeError);
   });
 });

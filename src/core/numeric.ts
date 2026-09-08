@@ -107,3 +107,32 @@ export function requireFinite(value: number, label: string): number {
   }
   return value;
 }
+
+/**
+ * Pearson correlation between two equal-length series.
+ *
+ * Returns `NaN` when either series is constant. That is the honest answer —
+ * a correlation is undefined without variation to correlate — and it is
+ * reachable in practice: a recovery study run at a single ability point has no
+ * spread in the generating values at all.
+ */
+export function correlation(xs: readonly number[], ys: readonly number[]): number {
+  if (xs.length !== ys.length) {
+    throw new RangeError(`correlation: length mismatch (${xs.length} vs ${ys.length})`);
+  }
+  if (xs.length === 0) throw new RangeError('correlation: empty array');
+  const mx = mean(xs);
+  const my = mean(ys);
+  let sxy = 0;
+  let sxx = 0;
+  let syy = 0;
+  for (let i = 0; i < xs.length; i += 1) {
+    const dx = (xs[i] as number) - mx;
+    const dy = (ys[i] as number) - my;
+    sxy += dx * dy;
+    sxx += dx * dx;
+    syy += dy * dy;
+  }
+  if (sxx === 0 || syy === 0) return Number.NaN;
+  return sxy / Math.sqrt(sxx * syy);
+}
