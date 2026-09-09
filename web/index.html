@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>calibrate — adaptive testing engine</title>
+    <meta
+      name="description"
+      content="An adaptive test running on item response theory: live ability posterior, item and test information, and item bank coverage."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%231086d3'/%3E%3Cpath d='M3 11.5C5 11.5 5.5 4.5 8 4.5s3 7 5 7' stroke='white' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="masthead">
+        <h1 class="masthead__name">calibrate</h1>
+        <p class="masthead__tagline">
+          An adaptive test, item by item: what the engine believes about the candidate, and how
+          much each answer changed it.
+        </p>
+        <div id="theme"></div>
+      </header>
+
+      <div class="control-row" id="controls"></div>
+
+      <div class="columns">
+        <aside class="columns__aside">
+          <section class="panel" id="session" aria-label="Session"></section>
+        </aside>
+        <div class="stack">
+          <section class="panel" id="posterior" aria-label="Ability posterior"></section>
+          <section class="panel" id="transcript" aria-label="Transcript"></section>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./build/web/app/main.js"></script>
+  </body>
+</html>
