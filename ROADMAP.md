@@ -61,5 +61,5 @@ tests that exercise the numerics against closed-form or published results.
 
 - [x] Live adaptive session view
 - [x] Ability posterior and credible band, updating per response
-- [ ] Item and test information curves
-- [ ] Pool coverage and exposure visualisation
+- [x] Item and test information curves
+- [x] Pool coverage and exposure visualisation

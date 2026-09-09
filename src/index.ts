@@ -203,6 +203,12 @@ export {
   type Blueprint,
 } from './selection/content.js';
 
+export {
+  exposureConcentration,
+  type ExposureConcentration,
+  type LorenzPoint,
+} from './selection/concentration.js';
+
 export { ItemPool } from './session/pool.js';
 
 export {

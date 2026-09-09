@@ -1,5 +1,7 @@
 import { html } from './chart/svg.js';
 import { DEFAULT_CONFIGURATION, Store, type PolicyName } from './state.js';
+import { mountBank } from './views/bank.js';
+import { mountInformation } from './views/information.js';
 import { mountPosterior } from './views/posterior.js';
 import { mountSession, mountTranscript } from './views/session.js';
 
@@ -104,6 +106,8 @@ function main(): void {
   const sessionPanel = document.querySelector('#session');
   const posteriorPanel = document.querySelector('#posterior');
   const transcriptPanel = document.querySelector('#transcript');
+  const informationPanel = document.querySelector('#information');
+  const bankPanel = document.querySelector('#bank');
   const themeSlot = document.querySelector('#theme');
 
   if (
@@ -111,6 +115,8 @@ function main(): void {
     !(sessionPanel instanceof HTMLElement) ||
     !(posteriorPanel instanceof HTMLElement) ||
     !(transcriptPanel instanceof HTMLElement) ||
+    !(informationPanel instanceof HTMLElement) ||
+    !(bankPanel instanceof HTMLElement) ||
     !(themeSlot instanceof HTMLElement)
   ) {
     throw new Error('main: the document is missing one of its mount points');
@@ -120,6 +126,8 @@ function main(): void {
   mountControls(controls, store);
   mountSession(sessionPanel, store);
   mountPosterior(posteriorPanel, store);
+  mountInformation(informationPanel, store);
+  mountBank(bankPanel, store);
   mountTranscript(transcriptPanel, store);
 }
 

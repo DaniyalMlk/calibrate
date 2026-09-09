@@ -50,7 +50,7 @@ export const THETA_DOMAIN: readonly [number, number] = [-4, 4];
 
 const DOMAINS = ['arrays', 'graphs', 'dynamic-programming'] as const;
 
-function selectorFor(policy: PolicyName): Selector {
+export function selectorFor(policy: PolicyName): Selector {
   switch (policy) {
     case 'kullback-leibler':
       return kullbackLeiblerSelector();
@@ -69,6 +69,10 @@ function selectorFor(policy: PolicyName): Selector {
 export interface ViewModel {
   readonly configuration: Configuration;
   readonly bank: readonly Item[];
+  /** The same items as a pool, for views that run their own simulations. */
+  readonly pool: ItemPool;
+  /** Items by identifier, for resolving a transcript back to its items. */
+  readonly byId: ReadonlyMap<string, Item>;
   readonly snapshot: SessionSnapshot;
   readonly responses: readonly ScoredResponse[];
   readonly current: Item | null;
@@ -97,6 +101,8 @@ type Listener = (model: ViewModel) => void;
 export class Store {
   private configuration: Configuration = DEFAULT_CONFIGURATION;
   private bank: readonly Item[] = [];
+  private pool!: ItemPool;
+  private byId: ReadonlyMap<string, Item> = new Map();
   private session!: AdaptiveSession;
   private current: Item | null = null;
   private answered: ScoredResponse[] = [];
@@ -131,10 +137,12 @@ export class Store {
     this.configuration = configuration;
     this.bank =
       reuse ?? syntheticBank({ size: configuration.bankSize, domains: DOMAINS, seed: configuration.seed });
+    this.pool = new ItemPool(this.bank);
+    this.byId = new Map(this.bank.map((item) => [item.id, item]));
     this.answered = [];
 
     this.session = new AdaptiveSession({
-      pool: new ItemPool(this.bank),
+      pool: this.pool,
       selector: selectorFor(configuration.policy),
       stopping: precisionTarget(configuration.target, {
         minimum: 5,
@@ -208,6 +216,8 @@ export class Store {
     return {
       configuration: this.configuration,
       bank: this.bank,
+      pool: this.pool,
+      byId: this.byId,
       snapshot,
       responses,
       current: this.current,

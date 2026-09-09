@@ -11,14 +11,13 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 6 of [ROADMAP.md](ROADMAP.md) are complete, and phase 7 is under
-way. An adaptive test runs end to end today — `npm run demo` administers one
-against a synthetic bank and prints the transcript — `npm run study` compares
-selection policies over a simulated population, `npm run fit` estimates item
-parameters from a matrix of responses, and `npm run web` serves a browser
-interface that runs a session live and draws the ability posterior as it
-tightens. The remaining phase 7 work is the information curves and the bank
-coverage view.
+All seven phases of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test
+runs end to end — `npm run demo` administers one against a synthetic bank and
+prints the transcript — `npm run study` compares selection policies over a
+simulated population, `npm run fit` estimates item parameters from a matrix of
+responses, and `npm run web` serves a browser interface that runs a session
+live and draws the posterior, the information curves and the bank's coverage
+as it goes.
 
 ## Install and run
 
@@ -435,6 +434,36 @@ mean square is a ratio of chi-squares and strongly right-skewed: 1.3 is
 unremarkable on thirty responses and damning on three thousand, and only the
 standardised form says which situation you are in.
 
+### How concentrated exposure is
+
+The peak exposure rate, the overlap rate and the unused fraction each say
+something true about bank security, and none of them describes the shape of the
+distribution.
+
+```ts
+import { exposureConcentration, exposureRatesFromIds } from 'calibrate';
+
+const rates = exposureRatesFromIds(sessions.map((session) => session.itemIds));
+const shape = exposureConcentration(bank.length, rates);
+
+shape.gini; // 0.704
+shape.topDecileShare; // 0.42 — the most-exposed tenth carried 42% of everything
+shape.curve; // the Lorenz curve, for plotting
+```
+
+A bank where thirty items carry sixty percent of all administrations and one
+where a hundred and twenty items carry the same sixty percent can report an
+identical peak rate and an identical unused fraction. Only the shape separates
+them, and the shape is what says how much of the bank an attacker would have to
+harvest to reconstruct most of the testing. The Gini coefficient is zero under
+perfectly even use and `(n - 1) / n` when one item absorbs everything — not
+one, because a bank of finite size cannot concentrate perfectly.
+
+`bankSize` is a required argument rather than something inferred from the map
+because an item that was never administered is the most concentrating thing a
+bank can hold, and a curve computed only over the items that were used would
+omit exactly that.
+
 ### Where a bank cannot measure
 
 ```ts
@@ -505,7 +534,20 @@ posterior tighten per response. The selection policy, the target standard
 error, the length ceiling and the simulated ability are all live controls, and
 every panel re-renders from the same configuration.
 
-Two decisions shaped it.
+Four panels:
+
+- **Session** — the item awaiting a response and its parameters, the running
+  estimate, and the stopping rule's verdict.
+- **Ability posterior** — the density with its nested 50, 80 and 95 percent
+  credible bands, redrawn per response.
+- **Information and precision** — test information across the ability range,
+  with a rug of item difficulties along the baseline, and the standard error of
+  measurement below it on the same ability axis.
+- **Bank coverage and exposure** — the standard error the whole bank could
+  reach at each ability, with its coverage gaps, and a Lorenz curve over item
+  exposure across a simulated population.
+
+Three decisions shaped it.
 
 **No bundler and no runtime dependencies.** `tsc` emits ES modules whose import
 specifiers are already what a browser resolves, so the browser loads the
@@ -524,6 +566,14 @@ disagree slightly by construction — one is the weighted likelihood estimate,
 the other the mean of the posterior — and a headline showing one while the
 transcript showed the other reads as an arithmetic error rather than as two
 estimators.
+
+**No panel has two vertical axes.** Test information and the standard error of
+measurement are the obvious candidate: they are two views of one quantity and
+they fit neatly on one plot with an axis on each side. But they are
+reciprocally related, so the point where the two lines cross is set entirely by
+the two ranges chosen and says nothing about the test. They are stacked on one
+shared ability axis instead, which keeps every comparison horizontal — the only
+direction in which those two quantities are comparable.
 
 ## Design decisions
 

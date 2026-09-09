@@ -1,5 +1,5 @@
 import { crisp, haloText, svg } from './svg.js';
-import { linearScale, niceTicks, type Scale } from './scale.js';
+import { linearScale, niceTicks, tickDecimals, type Scale } from './scale.js';
 
 export interface Insets {
   readonly left: number;
@@ -27,6 +27,11 @@ export interface PlotOptions {
    * information instead, so the axis is only ink.
    */
   readonly hideYAxis?: boolean;
+  /**
+   * Draw the x ticks without their labels, for the upper of two panels that
+   * share one axis. The labels below serve both.
+   */
+  readonly hideXLabels?: boolean;
 }
 
 const DEFAULT_INSETS: Insets = { left: 44, right: 16, top: 12, bottom: 28 };
@@ -54,7 +59,14 @@ export class Plot {
   readonly overlay: SVGGElement;
 
   constructor(options: PlotOptions) {
-    const insets = { ...DEFAULT_INSETS, ...options.insets };
+    const requested = { ...DEFAULT_INSETS, ...options.insets };
+    // An axis label needs a band of its own. Enforcing that here rather than at
+    // every call site is what stops one plot from overlapping its tick labels
+    // with its axis title because it forgot to widen the bottom inset.
+    const insets =
+      options.xLabel !== undefined && requested.bottom < 44
+        ? { ...requested, bottom: 44 }
+        : requested;
     this.insets = options.hideYAxis ? { ...insets, left: 12 } : insets;
     this.width = options.width;
     this.height = options.height;
@@ -111,8 +123,13 @@ export class Plot {
     const yTicks = niceTicks(this.y.domain, options.yTicks ?? 5);
     const xTicks = niceTicks(this.x.domain, xTickTarget);
 
-    const formatY = options.yTickFormat ?? ((value: number) => String(value));
-    const formatX = options.xTickFormat ?? ((value: number) => String(value));
+    // Default formatting derives its precision from the tick step, so a step of
+    // 0.25 is written "0.25" rather than rounded to "0.3" beside a gridline
+    // that is not at 0.3.
+    const yDecimals = tickDecimals((yTicks[1] ?? 1) - (yTicks[0] ?? 0));
+    const xDecimals = tickDecimals((xTicks[1] ?? 1) - (xTicks[0] ?? 0));
+    const formatY = options.yTickFormat ?? ((value: number) => value.toFixed(yDecimals));
+    const formatX = options.xTickFormat ?? ((value: number) => value.toFixed(xDecimals));
 
     if (!options.hideYAxis) {
       for (const value of yTicks) {
@@ -164,6 +181,9 @@ export class Plot {
           'shape-rendering': 'crispEdges',
         }),
       );
+      if (options.hideXLabels === true) {
+        continue;
+      }
       // The first and last labels anchor inward so they cannot overhang the plot.
       const anchor = index === 0 ? 'start' : index === xTicks.length - 1 ? 'end' : 'middle';
       const label = haloText(x, baseline + 18, formatX(value), {
@@ -215,7 +235,11 @@ export class Plot {
         ...(kind === 'target' ? { 'stroke-dasharray': '4 3' } : {}),
         'shape-rendering': 'crispEdges',
       }),
-      haloText(this.plotRight - 6, y - 6, label, { 'text-anchor': 'end' }),
+      // Labelled at the left end rather than the right. These curves rise to
+      // the right, so a right-aligned label lands where the data is, and the
+      // halo that keeps it legible does so by erasing a slice of the line it
+      // sits on — legible at the cost of the thing being measured.
+      haloText(this.plotLeft + 6, y - 9, label, { 'text-anchor': 'start' }),
     );
   }
 
