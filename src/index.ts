@@ -110,6 +110,16 @@ export {
 } from './estimation/wle.js';
 
 export {
+  credibleInterval,
+  posteriorCdf,
+  posteriorDensity,
+  posteriorMassBetween,
+  type CredibleInterval,
+  type Posterior,
+  type PosteriorOptions,
+} from './estimation/posterior.js';
+
+export {
   simulateMatrix,
   simulateResponse,
   simulateResponses,
