@@ -11,24 +11,28 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 6 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
-end to end today — `npm run demo` administers one against a synthetic bank and
-prints the transcript — `npm run study` compares selection policies over a
-simulated population, and `npm run fit` estimates item parameters from a matrix
-of responses. The web interface (phase 7) is not built yet.
+Phases 1 to 6 of [ROADMAP.md](ROADMAP.md) are complete, and phase 7 is under
+way. An adaptive test runs end to end today — `npm run demo` administers one
+against a synthetic bank and prints the transcript — `npm run study` compares
+selection policies over a simulated population, `npm run fit` estimates item
+parameters from a matrix of responses, and `npm run web` serves a browser
+interface that runs a session live and draws the ability posterior as it
+tightens. The remaining phase 7 work is the information curves and the bank
+coverage view.
 
 ## Install and run
 
 ```bash
 npm install
 npm test          # vitest
-npm run typecheck # tsc --noEmit, including the test files
+npm run typecheck # tsc --noEmit, library and web interface, including tests
 npm run build     # emits dist/ with declarations
 
 npm run demo      # one adaptive session, with its transcript
 npm run study     # selection policies compared over a simulated population
 npm run recover   # how well each estimator recovers a known ability
 npm run fit       # item parameters calibrated from a matrix of responses
+npm run web       # the browser interface, on http://localhost:5173/web/
 ```
 
 ## What is here today
@@ -451,6 +455,75 @@ administered, which is deliberately optimistic — no candidate sees the whole
 bank. That is what makes it a sufficient screen: a region the full bank cannot
 measure to target is one no adaptive test over that bank will ever measure to
 target.
+
+### The posterior, not just its mean
+
+`estimateEap` returns the posterior mean and `estimateMap` its mode, but a
+session view wants the whole distribution: the shape of what is believed, and
+how much of it lies where.
+
+```ts
+import { credibleInterval, posteriorDensity, posteriorMassBetween } from 'calibrate';
+
+const posterior = posteriorDensity(responses); // even grid, normalised
+posterior.mean; // 0.927
+posterior.sd; // 0.301
+posterior.mode; // interpolated, not the highest grid point
+
+credibleInterval(posterior, 0.95); // { lower: 0.32, upper: 1.48, width: 1.16 }
+posteriorMassBetween(posterior, 0.5, 4); // 0.93 — confidence in a pass at a cut of 0.5
+```
+
+The grid is evenly spaced, which is the whole reason this exists separately
+from `estimateEap`. Gauss-Hermite nodes cluster near the prior mean and are the
+right choice for computing a mean, but a band drawn between them has vertices
+that bunch in the middle and stretch at the tails, and the eye reads that as
+structure in the posterior rather than in the quadrature.
+
+Intervals are equal-tailed rather than highest-density, for a reportability
+reason rather than a numerical one. An equal-tailed interval is a pair of
+posterior quantiles, so "2.5% of the posterior lies below this candidate's
+interval" is a sentence that survives being quoted in a score report. A
+highest-density interval is narrower on a skewed posterior, but its endpoints
+are not quantiles of anything and it can be disjoint on a bimodal posterior —
+which a mixed pattern on high-guessing items really can produce.
+
+`edgeRatio` reports how much density is still standing at the edge of the grid,
+as a fraction of the peak. Everything else in the result is conditioned on the
+posterior lying inside the grid, and that is the number which says whether it
+does.
+
+## The web interface
+
+```bash
+npm run web
+```
+
+An adaptive session in the browser: answer items as correct or incorrect, or
+let a simulated candidate at a chosen ability answer them, and watch the
+posterior tighten per response. The selection policy, the target standard
+error, the length ceiling and the simulated ability are all live controls, and
+every panel re-renders from the same configuration.
+
+Two decisions shaped it.
+
+**No bundler and no runtime dependencies.** `tsc` emits ES modules whose import
+specifiers are already what a browser resolves, so the browser loads the
+library directly — the same files a consumer would import, exercised the way a
+consumer would exercise them, with nothing in between that could paper over a
+mistake. Compiling with `rootDir` at the repository root preserves the relative
+path from the interface to `src`, so one specifier works both in the
+TypeScript source and in the emitted JavaScript. The charts are hand-written
+SVG for the same reason: a linear scale, an axis that lands on round numbers
+and a band between two edges are a few lines each, which is less than the cost
+of a chart library on a page whose point is that it has none.
+
+**The headline figure is the estimate the engine reports.** The posterior mean
+sits beside it as its own labelled readout rather than in the headline. The two
+disagree slightly by construction — one is the weighted likelihood estimate,
+the other the mean of the posterior — and a headline showing one while the
+transcript showed the other reads as an arithmetic error rather than as two
+estimators.
 
 ## Design decisions
 
