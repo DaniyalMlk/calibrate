@@ -98,3 +98,24 @@ export function niceTicks(domain: readonly [number, number], count = 5): number[
 export function clampTo(value: number, lo: number, hi: number): number {
   return value < lo ? lo : value > hi ? hi : value;
 }
+
+/**
+ * Decimal places needed to write a tick step exactly.
+ *
+ * Not a guess from the magnitude: a step of 0.25 needs two places, and one
+ * place rounds it to 0.3 — which puts the label "0.3" beside a gridline that
+ * is at 0.25 and beside a reference line that really is at 0.30. An axis that
+ * misreports where its own gridlines are undermines every number on the plot.
+ */
+export function tickDecimals(step: number): number {
+  const magnitude = Math.abs(step);
+  if (!Number.isFinite(magnitude) || magnitude === 0) {
+    return 2;
+  }
+  for (let decimals = 0; decimals <= 6; decimals += 1) {
+    if (Math.abs(Number(magnitude.toFixed(decimals)) - magnitude) < magnitude * 1e-9) {
+      return decimals;
+    }
+  }
+  return 6;
+}
