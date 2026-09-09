@@ -20,7 +20,9 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "web:build": "tsc -p tsconfig.web.json",
+    "web": "tsc -p tsconfig.web.json && node web/serve.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "demo": "tsx src/cli/main.ts demo",
