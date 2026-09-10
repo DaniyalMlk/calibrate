@@ -1,13 +1,12 @@
 import { createRng } from '../core/random.js';
 import type { EstimatorName } from '../estimation/mle.js';
-import type { Item } from '../models/item.js';
-import type { Response } from '../models/response.js';
+import type { AnyItem } from '../models/mixed.js';
 import type { Selector } from '../selection/selector.js';
 import type { SessionEstimator } from '../session/estimator.js';
 import type { ItemPool } from '../session/pool.js';
 import { AdaptiveSession } from '../session/session.js';
 import type { StoppingRule } from '../session/stopping.js';
-import { simulateResponse } from './respondent.js';
+import { simulateCategory } from './respondent.js';
 
 /**
  * A named configuration of the three things that make an adaptive test a
@@ -88,7 +87,7 @@ export function simulateSession(
   // item both policies happened to administer. Without the split, a comparison
   // between two policies would be confounded by the responses themselves.
   const answers = createRng(seed ^ 0x5f3759df);
-  const snapshot = session.run((item: Item): Response => simulateResponse(item, trueTheta, answers));
+  const snapshot = session.run((item: AnyItem): number => simulateCategory(item, trueTheta, answers));
 
   return {
     trueTheta,

@@ -26,7 +26,8 @@ import {
   maximumInformationSelector,
 } from '../src/selection/information.js';
 import { rankByScore, type SelectionContext, type Selector } from '../src/selection/selector.js';
-import { simulateResponse } from '../src/simulation/respondent.js';
+import { simulateCategory } from '../src/simulation/respondent.js';
+import type { AnyItem, AnyResponse } from '../src/models/mixed.js';
 
 function bank(count: number, a = 1.2): Item[] {
   return linspace(-3, 3, count).map((b, index) => makeItem(`i-${index}`, twoPL(a, b)));
@@ -49,15 +50,15 @@ function runSession(
   length: number,
   rng: Rng,
   theta = 0,
-): Item[] {
+): AnyItem[] {
   const remaining = [...pool];
-  const responses: ScoredResponse[] = [];
-  const administered: Item[] = [];
+  const responses: AnyResponse[] = [];
+  const administered: AnyItem[] = [];
   for (let i = 0; i < length; i += 1) {
     const pick = selector.select({ candidates: remaining, theta, responses, rng });
     if (pick === null) break;
     administered.push(pick);
-    responses.push({ item: pick, response: simulateResponse(pick, trueTheta, rng) });
+    responses.push({ item: pick, category: simulateCategory(pick, trueTheta, rng) });
     remaining.splice(
       remaining.findIndex((item) => item.id === pick.id),
       1,
@@ -250,8 +251,8 @@ describe('randomesque', () => {
   it('leaves less of the bank untouched than the unconstrained rule', () => {
     const plain = maximumInformationSelector();
     const spread = randomesque(plain, 6);
-    const plainSessions: Item[][] = [];
-    const spreadSessions: Item[][] = [];
+    const plainSessions: AnyItem[][] = [];
+    const spreadSessions: AnyItem[][] = [];
     for (let candidate = 0; candidate < 120; candidate += 1) {
       const trueTheta = createRng(candidate + 1).nextNormal();
       plainSessions.push(runSession(plain, pool, trueTheta, 8, createRng(candidate + 500)));
@@ -286,8 +287,8 @@ describe('sympsonHetter', () => {
       parameters: new Map(hottest.map((id) => [id, 0.2])),
     });
 
-    const plainSessions: Item[][] = [];
-    const controlledSessions: Item[][] = [];
+    const plainSessions: AnyItem[][] = [];
+    const controlledSessions: AnyItem[][] = [];
     for (let candidate = 0; candidate < 200; candidate += 1) {
       const trueTheta = createRng(candidate + 1).nextNormal();
       plainSessions.push(runSession(plain, pool, trueTheta, 6, createRng(candidate + 900)));

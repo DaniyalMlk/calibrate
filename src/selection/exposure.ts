@@ -1,5 +1,5 @@
-import { itemInformation } from '../models/response.js';
-import type { Item } from '../models/item.js';
+import { informationOf } from '../models/mixed.js';
+import type { AnyItem } from '../models/mixed.js';
 import { rankByScore, type SelectionContext, type Selector } from './selector.js';
 
 /**
@@ -20,7 +20,7 @@ export function randomesque(base: Selector, k = 5): Selector {
   }
   return {
     name: `randomesque(${base.name}, k=${k})`,
-    select(context: SelectionContext): Item | null {
+    select(context: SelectionContext): AnyItem | null {
       if (context.candidates.length === 0) return null;
       if (k === 1) return base.select(context);
 
@@ -42,9 +42,9 @@ export function randomesque(base: Selector, k = 5): Selector {
  * criterion, at a cost of `k` selections. `k` is small in practice — 3 to 10 —
  * so the extra work is bounded and predictable.
  */
-function topCandidates(base: Selector, context: SelectionContext, k: number): Item[] {
+function topCandidates(base: Selector, context: SelectionContext, k: number): AnyItem[] {
   const remaining = [...context.candidates];
-  const chosen: Item[] = [];
+  const chosen: AnyItem[] = [];
   for (let i = 0; i < k && remaining.length > 0; i += 1) {
     const pick = base.select({ ...context, candidates: remaining });
     if (pick === null) break;
@@ -101,9 +101,9 @@ export function sympsonHetter(base: Selector, options: SympsonHetterOptions): Se
 
   return {
     name: `sympson-hetter(${base.name})`,
-    select(context: SelectionContext): Item | null {
+    select(context: SelectionContext): AnyItem | null {
       const remaining = [...context.candidates];
-      let last: Item | null = null;
+      let last: AnyItem | null = null;
       for (let attempt = 0; attempt < maxAttempts && remaining.length > 0; attempt += 1) {
         const pick = base.select({ ...context, candidates: remaining });
         if (pick === null) break;
@@ -150,7 +150,7 @@ export function exposureRatesFromIds(
 
 /** Observed exposure rates: the fraction of sessions in which each item appeared. */
 export function exposureRates(
-  administered: readonly (readonly Item[])[],
+  administered: readonly (readonly AnyItem[])[],
 ): ReadonlyMap<string, number> {
   return exposureRatesFromIds(administered.map((session) => session.map((item) => item.id)));
 }
@@ -164,8 +164,8 @@ export function exposureRates(
  * control matters.
  */
 export function unusedFraction(
-  bank: readonly Item[],
-  administered: readonly (readonly Item[])[],
+  bank: readonly AnyItem[],
+  administered: readonly (readonly AnyItem[])[],
 ): number {
   if (bank.length === 0) return 0;
   const used = new Set<string>();
@@ -255,6 +255,6 @@ export function exposureChiSquare(
  * Rank a bank by information at a given ability — a helper for tuning and for
  * tests, not part of the selection path.
  */
-export function rankByInformationAt(bank: readonly Item[], theta: number): Item[] {
-  return rankByScore(bank, (item) => itemInformation(item.parameters, theta)).map((e) => e.item);
+export function rankByInformationAt(bank: readonly AnyItem[], theta: number): AnyItem[] {
+  return rankByScore(bank, (item) => informationOf(item, theta)).map((e) => e.item);
 }

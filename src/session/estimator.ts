@@ -3,7 +3,7 @@ import { patternBoundedness } from '../estimation/likelihood.js';
 import { estimateMle, type AbilityEstimate, type MleOptions } from '../estimation/mle.js';
 import { estimateWle, type WleOptions } from '../estimation/wle.js';
 import { STANDARD_NORMAL_PRIOR } from '../estimation/prior.js';
-import type { ScoredResponse } from '../models/response.js';
+import type { AnyResponse } from '../models/mixed.js';
 
 /**
  * How a session turns a response pattern into an ability estimate.
@@ -11,7 +11,7 @@ import type { ScoredResponse } from '../models/response.js';
  * A plain function rather than an interface, because that is all a session needs
  * and it lets callers supply their own without implementing anything.
  */
-export type SessionEstimator = (responses: readonly ScoredResponse[]) => AbilityEstimate;
+export type SessionEstimator = (responses: readonly AnyResponse[]) => AbilityEstimate;
 
 /** Expected a posteriori estimation. Defined for every pattern, including empty. */
 export function eapEstimator(options: BayesOptions = {}): SessionEstimator {

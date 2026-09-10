@@ -175,6 +175,31 @@ export function categorySecondDerivativesOf(item: AnyItem, theta: number): numbe
   return [-curvature, curvature];
 }
 
+/**
+ * Where an item sits on the ability scale, as a single number.
+ *
+ * A dichotomous item reports its difficulty. A polytomous item reports the mean
+ * of its thresholds, which is the standard summary location and the ability at
+ * which the expected score is roughly half the maximum.
+ *
+ * This is a reporting convenience and nothing more: collapsing a rubric's
+ * thresholds to their mean discards precisely the information that makes a
+ * polytomous item worth having, so nothing in the engine selects or scores on
+ * it. It exists so a transcript can put both formats in one column.
+ */
+export function itemLocation(item: AnyItem): number {
+  if (!isPolytomous(item)) return (item.parameters as ItemParameters).b;
+  const thresholds = item.parameters.thresholds;
+  let total = 0;
+  for (const value of thresholds) total += value;
+  return total / thresholds.length;
+}
+
+/** The discrimination of an item of either format. */
+export function discriminationOf(item: AnyItem): number {
+  return item.parameters.a;
+}
+
 /** Fisher information contributed by an item of either format. */
 export function informationOf(item: AnyItem, theta: number): number {
   return isPolytomous(item)

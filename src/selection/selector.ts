@@ -1,6 +1,5 @@
 import type { Rng } from '../core/random.js';
-import type { Item } from '../models/item.js';
-import type { ScoredResponse } from '../models/response.js';
+import type { AnyItem, AnyResponse } from '../models/mixed.js';
 
 /**
  * Everything a selection policy is allowed to see when choosing the next item.
@@ -11,11 +10,11 @@ import type { ScoredResponse } from '../models/response.js';
  */
 export interface SelectionContext {
   /** Items still eligible: not yet administered, not otherwise excluded. */
-  readonly candidates: readonly Item[];
+  readonly candidates: readonly AnyItem[];
   /** The current ability estimate. */
   readonly theta: number;
   /** Responses given so far, in administration order. */
-  readonly responses: readonly ScoredResponse[];
+  readonly responses: readonly AnyResponse[];
   /** Seeded generator. Policies must use this rather than `Math.random`. */
   readonly rng: Rng;
 }
@@ -31,7 +30,7 @@ export interface SelectionContext {
 export interface Selector {
   /** Stable identifier, used in transcripts and study reports. */
   readonly name: string;
-  select(context: SelectionContext): Item | null;
+  select(context: SelectionContext): AnyItem | null;
 }
 
 /**
@@ -43,9 +42,9 @@ export interface Selector {
  * implementation-defined for equal keys.
  */
 export function rankByScore(
-  candidates: readonly Item[],
-  score: (item: Item) => number,
-): { item: Item; score: number }[] {
+  candidates: readonly AnyItem[],
+  score: (item: AnyItem) => number,
+): { item: AnyItem; score: number }[] {
   return candidates
     .map((item) => ({ item, score: score(item) }))
     .sort((left, right) => {

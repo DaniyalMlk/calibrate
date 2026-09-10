@@ -1,4 +1,4 @@
-import type { Item } from '../models/item.js';
+import type { AnyItem } from '../models/mixed.js';
 
 /**
  * An item bank with the indexes a session needs.
@@ -8,14 +8,14 @@ import type { Item } from '../models/item.js';
  * sessions without any of them able to corrupt another.
  */
 export class ItemPool {
-  readonly #items: readonly Item[];
-  readonly #byId: ReadonlyMap<string, Item>;
-  readonly #byDomain: ReadonlyMap<string, readonly Item[]>;
+  readonly #items: readonly AnyItem[];
+  readonly #byId: ReadonlyMap<string, AnyItem>;
+  readonly #byDomain: ReadonlyMap<string, readonly AnyItem[]>;
 
-  constructor(items: readonly Item[]) {
+  constructor(items: readonly AnyItem[]) {
     if (items.length === 0) throw new RangeError('ItemPool: at least one item is required');
 
-    const byId = new Map<string, Item>();
+    const byId = new Map<string, AnyItem>();
     for (const item of items) {
       if (byId.has(item.id)) {
         // A duplicate id would let the same question be administered twice
@@ -25,7 +25,7 @@ export class ItemPool {
       byId.set(item.id, item);
     }
 
-    const byDomain = new Map<string, Item[]>();
+    const byDomain = new Map<string, AnyItem[]>();
     for (const item of items) {
       const domain = item.domain;
       if (domain === undefined) continue;
@@ -44,11 +44,11 @@ export class ItemPool {
   }
 
   /** Every item in the pool, in construction order. */
-  all(): readonly Item[] {
+  all(): readonly AnyItem[] {
     return this.#items;
   }
 
-  byId(id: string): Item | undefined {
+  byId(id: string): AnyItem | undefined {
     return this.#byId.get(id);
   }
 
@@ -57,12 +57,12 @@ export class ItemPool {
     return [...this.#byDomain.keys()].sort();
   }
 
-  inDomain(domain: string): readonly Item[] {
+  inDomain(domain: string): readonly AnyItem[] {
     return this.#byDomain.get(domain) ?? [];
   }
 
   /** Items not in `used`, preserving pool order. */
-  eligible(used: ReadonlySet<string>): Item[] {
+  eligible(used: ReadonlySet<string>): AnyItem[] {
     return this.#items.filter((item) => !used.has(item.id));
   }
 }

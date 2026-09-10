@@ -1,12 +1,13 @@
 import { createRng } from '../core/random.js';
+import { discriminationOf, itemLocation } from '../models/mixed.js';
 import { blueprint, contentBalanced } from '../selection/content.js';
 import { randomesque } from '../selection/exposure.js';
 import { maximumInformationSelector } from '../selection/information.js';
 import { AdaptiveSession } from '../session/session.js';
 import { precisionTarget } from '../session/stopping.js';
 import { syntheticPool } from '../simulation/bank.js';
-import { simulateResponse } from '../simulation/respondent.js';
-import { pad, padStart } from './format.js';
+import { simulateCategory } from '../simulation/respondent.js';
+import { pad, padStart, scoreLabel } from './format.js';
 import { parseOptions, type OptionSpecs } from './options.js';
 
 export const DEMO_OPTIONS = {
@@ -34,7 +35,7 @@ export function runDemo(argv: readonly string[]): void {
   });
 
   const answers = createRng(options.seed + 1);
-  const snapshot = session.run((item) => simulateResponse(item, options.theta, answers));
+  const snapshot = session.run((item) => simulateCategory(item, options.theta, answers));
 
   process.stdout.write(
     `Bank: ${pool.size} items across ${pool.domains().length} domains ` +
@@ -61,9 +62,9 @@ export function runDemo(argv: readonly string[]): void {
     process.stdout.write(
       pad(String(entry.position), 4) +
         pad(entry.itemId, 26) +
-        padStart((item?.parameters.b ?? 0).toFixed(2), 7) +
-        padStart((item?.parameters.a ?? 0).toFixed(2), 7) +
-        padStart(entry.response === 1 ? 'right' : 'wrong', 7) +
+        padStart(item === undefined ? '-' : itemLocation(item).toFixed(2), 7) +
+        padStart(item === undefined ? '-' : discriminationOf(item).toFixed(2), 7) +
+        padStart(scoreLabel(entry.response, entry.maximumScore), 7) +
         padStart(entry.thetaAfter.toFixed(3), 9) +
         padStart(entry.standardErrorAfter.toFixed(3), 8) +
         '  ' +

@@ -1,4 +1,4 @@
-import type { Item } from '../models/item.js';
+import type { AnyItem } from '../models/mixed.js';
 import type { SelectionContext, Selector } from './selector.js';
 
 /**
@@ -50,7 +50,7 @@ export function contentBalanced(base: Selector, targets: Blueprint): Selector {
 
   return {
     name: `content-balanced(${base.name})`,
-    select(context: SelectionContext): Item | null {
+    select(context: SelectionContext): AnyItem | null {
       if (context.candidates.length === 0) return null;
 
       const administered = context.responses.length;
@@ -87,7 +87,7 @@ export function contentBalanced(base: Selector, targets: Blueprint): Selector {
 }
 
 /** Observed proportion of administered items in each domain. */
-export function contentProportions(items: readonly Item[]): ReadonlyMap<string, number> {
+export function contentProportions(items: readonly AnyItem[]): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   for (const item of items) {
     const domain = item.domain ?? '(unclassified)';
