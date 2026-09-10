@@ -77,6 +77,96 @@ The Rasch/1PL, 2PL and 3PL are this same curve with parameters pinned, so
 `rasch`, `onePL`, `twoPL`, `threePL` and `fourPL` all return the same shape and
 the engine never branches on model type.
 
+### Items scored in more than two categories
+
+Not every item is right or wrong. An essay marked against a four-level rubric, a
+Likert item, a multi-step task where reaching step three is worth more than
+reaching step one — all of these carry information in *how far* the response got,
+and scoring them 0/1 throws most of it away.
+
+Three polytomous models cover those formats. An item with `m` thresholds scores
+into `m + 1` ordered categories, `0..m`:
+
+```ts
+import {
+  categoryProbabilities,
+  expectedCategoryScore,
+  generalizedPartialCredit,
+  graded,
+  partialCredit,
+  polytomousInformation,
+} from 'calibrate';
+
+const essay = graded(1.2, [-1.5, -0.2, 0.9]); // four rubric levels
+categoryProbabilities(essay, 0.4); // [0.093, 0.235, 0.318, 0.354] — sums to one
+expectedCategoryScore(essay, 0.4); // 1.934 out of 3
+polytomousInformation(essay, 0.4); // 0.437
+```
+
+- `graded(a, thresholds)` — Samejima's graded response model. Thresholds are
+  *cumulative* boundaries: `thresholds[k - 1]` is the ability at which reaching
+  category `k` or higher becomes more likely than not. Use it when the rubric
+  levels are ordered bands of one underlying quality.
+- `partialCredit(thresholds)` — Masters' partial credit model, discrimination
+  fixed at 1. Thresholds are *adjacent steps*: the ability at which categories
+  `k - 1` and `k` are equally likely. Use it when the task is solved in sequence
+  and each step is its own hurdle.
+- `generalizedPartialCredit(a, thresholds)` — Muraki's version of the same, with
+  a free discrimination per item.
+
+The distinction changes whether thresholds must be ordered. Under the graded
+model they must: unordered cumulative boundaries imply a negative category
+probability, which is arithmetic rather than a modelling choice, so it is
+rejected at construction. Under the partial credit models a reversal is
+meaningful — it says the category is never the single most likely outcome at any
+ability, which is a real finding about a narrow rubric band — so it is allowed
+through.
+
+Both families reduce to the dichotomous models when given a single threshold: a
+two-category graded item *is* the 2PL, and a two-category partial credit item
+*is* the Rasch model, agreeing to fourteen digits. The test suite checks this
+against `models/response.ts` rather than against a second copy of the formula.
+
+### Forms that mix both
+
+A real test form usually mixes formats: forty multiple-choice items and two
+extended responses. The mixed layer defines information, expected score and the
+test characteristic curve once for items of either kind.
+
+```ts
+import {
+  formatCounts,
+  makeItem,
+  makePolytomousItem,
+  maximumTestScore,
+  testCharacteristicCurve,
+  testInformationOf,
+  twoPL,
+} from 'calibrate';
+
+const form = [
+  makeItem('mc-1', twoPL(1.4, 0.2)),
+  makeItem('mc-2', twoPL(1.1, -0.3)),
+  makePolytomousItem('essay-1', graded(1.2, [-1.5, -0.2, 0.9])),
+];
+
+formatCounts(form); // { dichotomous: 2, polytomous: 1, maximumScore: 5 }
+testInformationOf(form, 0); // 1.219 — information from the whole form
+testCharacteristicCurve(form, 0); // 2.684 — expected total score at that ability
+maximumTestScore(form); // 5
+```
+
+The two formats are told apart by the shape of their parameters — a difficulty
+versus a threshold vector — rather than by a tag, so an item cannot be built
+with a label that contradicts its own parameters. A dichotomous item is handled
+as the two-category case throughout: its category distribution is `[1 - P, P]`
+and its expected score is `P`.
+
+The test characteristic curve is the bridge between the ability metric and a
+reported raw score. It rises monotonically to `maximumTestScore` — though not
+necessarily from zero, since a 3PL item on the form contributes its lower
+asymptote at any ability.
+
 ### Estimating ability
 
 ```ts
@@ -596,6 +686,22 @@ precision; the likelihood then has no usable gradient and every estimator
 silently stops converging. Rejecting that at construction, with the offending
 field named, is far cheaper to diagnose than a session that quietly returns
 garbage.
+
+**Two threshold conventions, not one.** It would be tidier to store polytomous
+thresholds in a single canonical form and convert. But a graded boundary and a
+partial credit step are different quantities that happen to be the same shape:
+one is cumulative, one is adjacent, and only the first has to be ordered.
+Collapsing them would either impose an ordering constraint the partial credit
+models do not have — discarding the diagnostically useful case of a reversed
+step — or drop the constraint the graded model cannot do without. They stay
+distinct, and `validatePolytomousParameters` applies the rule that belongs to
+each.
+
+**Discriminating on parameter shape, not on a tag field.** A mixed bank has to
+tell its two item formats apart. A `kind: 'polytomous'` field would be
+representable in a state that contradicts the parameters beside it. Testing for
+the presence of `thresholds` cannot: the discriminator is the thing that
+actually differs.
 
 **Bracket first, then Newton.** The 3PL log-likelihood is not guaranteed to be
 unimodal, and its observed information can be negative — a correct answer to a

@@ -69,6 +69,48 @@ export {
 } from './models/response.js';
 
 export {
+  boundaryProbability,
+  categoryCount,
+  categoryDerivatives,
+  categoryProbabilities,
+  categoryProbability,
+  categoryScoreVariance,
+  categorySecondDerivatives,
+  describePolytomousModel,
+  expectedCategoryScore,
+  generalizedPartialCredit,
+  graded,
+  maximumScore,
+  partialCredit,
+  partialCreditInformation,
+  polytomousInformation,
+  polytomousInformationPeak,
+  validatePolytomousParameters,
+  type PolytomousModel,
+  type PolytomousParameters,
+} from './models/polytomous.js';
+
+export {
+  categoryCountOf,
+  categoryProbabilitiesOf,
+  categoryProbabilityOf,
+  expectedScoreOf,
+  formatCounts,
+  informationOf,
+  isPolytomous,
+  makePolytomousItem,
+  maximumScoreOf,
+  maximumTestScore,
+  metricOf,
+  requireValidCategory,
+  testCharacteristicCurve,
+  testInformationOf,
+  type AnyItem,
+  type CategoryResponse,
+  type PolytomousItem,
+} from './models/mixed.js';
+
+export {
   expectedInformation,
   logLikelihood,
   observedInformation,

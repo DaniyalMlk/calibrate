@@ -63,3 +63,22 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Ability posterior and credible band, updating per response
 - [x] Item and test information curves
 - [x] Pool coverage and exposure visualisation
+
+## Phase 8 — Polytomous response models
+
+- [x] Graded response model with ordered cumulative boundaries
+- [x] Partial credit and generalized partial credit models
+- [x] Category derivatives, first and second, with respect to ability
+- [x] Polytomous item information and the partial credit variance form
+- [x] Expected category score and the test characteristic curve
+- [x] Mixed-format banks: one form holding both item formats
+- [x] Numeric guards: softmax overflow, boundary cancellation, tail behaviour
+
+## Phase 9 — Mixed-format measurement
+
+- [ ] Log-likelihood, score and observed information over categorical responses
+- [ ] Ability estimation from mixed-format response patterns
+- [ ] Boundedness of a mixed pattern: extreme scores across item maxima
+- [ ] Item selection and exposure accounting over a mixed pool
+- [ ] Adaptive sessions administering both formats
+- [ ] Command-line demonstration of a mixed-format test
