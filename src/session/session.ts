@@ -1,7 +1,11 @@
 import { createRng, type Rng } from '../core/random.js';
 import type { AbilityEstimate } from '../estimation/mle.js';
-import type { Item } from '../models/item.js';
-import type { Response, ScoredResponse } from '../models/response.js';
+import {
+  maximumScoreOf,
+  requireValidCategory,
+  type AnyItem,
+  type CategoryResponse,
+} from '../models/mixed.js';
 import type { Selector } from '../selection/selector.js';
 import { hybridEstimator, type SessionEstimator } from './estimator.js';
 import type { ItemPool } from './pool.js';
@@ -12,7 +16,13 @@ export interface TranscriptEntry {
   /** 1-based position in the test. */
   readonly position: number;
   readonly itemId: string;
-  readonly response: Response;
+  /**
+   * The category scored, `0..maximumScore`. For a dichotomous item this is the
+   * familiar 0 or 1; for a polytomous one it is the rubric level awarded.
+   */
+  readonly response: number;
+  /** The highest category the item could have scored, so a transcript row reads on its own. */
+  readonly maximumScore: number;
   /** Ability estimate used to select this item. */
   readonly thetaBefore: number;
   /** Standard error before the response. */
@@ -40,7 +50,7 @@ export interface SessionConfig {
 export interface SessionSnapshot {
   readonly status: SessionStatus;
   readonly administeredIds: readonly string[];
-  readonly responses: readonly Response[];
+  readonly responses: readonly number[];
   readonly theta: number;
   readonly standardError: number;
   readonly method: AbilityEstimate['method'];
@@ -69,9 +79,9 @@ export class AdaptiveSession {
 
   #status: SessionStatus = 'ready';
   #used = new Set<string>();
-  #responses: ScoredResponse[] = [];
+  #responses: CategoryResponse[] = [];
   #transcript: TranscriptEntry[] = [];
-  #pending: Item | null = null;
+  #pending: AnyItem | null = null;
   #estimate: AbilityEstimate;
   #stopReason: StopReason | null = null;
 
@@ -92,7 +102,7 @@ export class AdaptiveSession {
     return this.#estimate;
   }
 
-  get responses(): readonly ScoredResponse[] {
+  get responses(): readonly CategoryResponse[] {
     return this.#responses;
   }
 
@@ -105,7 +115,7 @@ export class AdaptiveSession {
   }
 
   /** Items administered so far, in order. */
-  get administered(): Item[] {
+  get administered(): AnyItem[] {
     return this.#transcript.map((entry) => {
       const item = this.#pool.byId(entry.itemId);
       if (item === undefined) throw new Error(`transcript references unknown item "${entry.itemId}"`);
@@ -120,7 +130,7 @@ export class AdaptiveSession {
    * session with a `pool-exhausted` reason rather than throwing, because running
    * out of eligible items is a normal outcome, not a fault.
    */
-  nextItem(): Item | null {
+  nextItem(): AnyItem | null {
     if (this.#status === 'finished') return null;
     if (this.#status === 'awaiting-response') {
       throw new Error(
@@ -149,19 +159,25 @@ export class AdaptiveSession {
     return item;
   }
 
-  /** Score the pending item, re-estimate, and evaluate the stopping rule. */
-  submit(response: Response): void {
+  /**
+   * Score the pending item, re-estimate, and evaluate the stopping rule.
+   *
+   * The argument is a category index, validated against the pending item's own
+   * maximum. A dichotomous item takes 0 or 1 as it always did; a rubric-scored
+   * item takes the level awarded. Passing a category the item cannot produce
+   * throws rather than being clamped, because it means the response was scored
+   * against a different item than the one being administered.
+   */
+  submit(category: number): void {
     if (this.#status !== 'awaiting-response' || this.#pending === null) {
       throw new Error('AdaptiveSession: no item is awaiting a response; call nextItem() first');
     }
-    if (response !== 0 && response !== 1) {
-      throw new RangeError(`AdaptiveSession: response must be 0 or 1, received ${String(response)}`);
-    }
-
     const item = this.#pending;
+    const response = requireValidCategory(item, category);
+
     const before = this.#estimate;
 
-    this.#responses.push({ item, response });
+    this.#responses.push({ item, category: response });
     this.#used.add(item.id);
     this.#estimate = this.#estimator(this.#responses);
     this.#pending = null;
@@ -171,6 +187,7 @@ export class AdaptiveSession {
       position: this.#transcript.length + 1,
       itemId: item.id,
       response,
+      maximumScore: maximumScoreOf(item),
       thetaBefore: before.theta,
       standardErrorBefore: before.standardError,
       thetaAfter: this.#estimate.theta,
@@ -192,7 +209,7 @@ export class AdaptiveSession {
    * The convenience path used by the simulation harness and by any caller that
    * already has the answers.
    */
-  run(respond: (item: Item) => Response): SessionSnapshot {
+  run(respond: (item: AnyItem) => number): SessionSnapshot {
     for (;;) {
       const item = this.nextItem();
       if (item === null) break;

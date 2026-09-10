@@ -1,33 +1,40 @@
 import { bracketSignChange, safeguardedRoot } from '../core/root.js';
 import {
-  probabilityCorrect,
-  responseDerivative,
-  responseSecondDerivative,
-  standardError as standardErrorOf,
-  type ScoredResponse,
-} from '../models/response.js';
+  categoryDerivativesOf,
+  categoryProbabilitiesOf,
+  categorySecondDerivativesOf,
+  type AnyResponse,
+} from '../models/mixed.js';
+import { standardError as standardErrorOf } from '../models/response.js';
 import { expectedInformation, scoreFunction } from './likelihood.js';
 import type { AbilityEstimate } from './mle.js';
 
 /**
- * Warm's bias-correction term, `J(theta) = sum_i P'_i P''_i / (P_i Q_i)`.
+ * Warm's bias-correction term, `J(theta) = sum_i sum_k P'_ik P''_ik / P_ik`.
  *
  * This is the quantity that measures how asymmetric the likelihood is at a given
  * ability. Maximum likelihood is biased outward — estimates in the tails are too
  * extreme — because the likelihood of an extreme pattern is skewed, and `J`
  * quantifies exactly that skew.
+ *
+ * The dichotomous form `sum_i P'_i P''_i / (P_i Q_i)` is the two-category case
+ * of this sum, not an approximation of it: with categories `[1 - P, P]` the two
+ * terms are `P' P'' / P` and `(-P')(-P'') / Q`, which add to
+ * `P' P'' (1 / P + 1 / Q) = P' P'' / (P Q)`. Summing over categories therefore
+ * leaves every dichotomous estimate unchanged while extending the correction to
+ * items answered partially.
  */
-export function warmCorrection(responses: readonly ScoredResponse[], theta: number): number {
+export function warmCorrection(responses: readonly AnyResponse[], theta: number): number {
   let total = 0;
   for (const { item } of responses) {
-    const p = probabilityCorrect(item.parameters, theta);
-    const q = 1 - p;
-    const denominator = p * q;
-    if (denominator <= Number.MIN_VALUE) continue;
-    total +=
-      (responseDerivative(item.parameters, theta) *
-        responseSecondDerivative(item.parameters, theta)) /
-      denominator;
+    const probabilities = categoryProbabilitiesOf(item, theta);
+    const first = categoryDerivativesOf(item, theta);
+    const second = categorySecondDerivativesOf(item, theta);
+    for (let k = 0; k < probabilities.length; k += 1) {
+      const p = probabilities[k] as number;
+      if (p <= Number.MIN_VALUE) continue;
+      total += ((first[k] as number) * (second[k] as number)) / p;
+    }
   }
   return total;
 }
@@ -37,7 +44,7 @@ export function warmCorrection(responses: readonly ScoredResponse[], theta: numb
  *
  * Its root is Warm's weighted likelihood estimate.
  */
-export function weightedScore(responses: readonly ScoredResponse[], theta: number): number {
+export function weightedScore(responses: readonly AnyResponse[], theta: number): number {
   const information = expectedInformation(responses, theta);
   if (information <= Number.MIN_VALUE) return scoreFunction(responses, theta);
   return scoreFunction(responses, theta) + warmCorrection(responses, theta) / (2 * information);
@@ -80,7 +87,7 @@ export interface WleOptions {
  * imprecise derivative costs a few extra iterations rather than correctness.
  */
 export function estimateWle(
-  responses: readonly ScoredResponse[],
+  responses: readonly AnyResponse[],
   options: WleOptions = {},
 ): AbilityEstimate {
   if (responses.length === 0) {

@@ -1,5 +1,12 @@
 import { createRng, type Rng } from '../core/random.js';
 import { makeItem, threePL, type Item } from '../models/item.js';
+import { makePolytomousItem, type AnyItem } from '../models/mixed.js';
+import {
+  generalizedPartialCredit,
+  graded,
+  partialCredit,
+  type PolytomousModel,
+} from '../models/polytomous.js';
 import { ItemPool } from '../session/pool.js';
 
 export interface SyntheticBankOptions {
@@ -56,4 +63,125 @@ export function syntheticBank(options: SyntheticBankOptions = {}): Item[] {
 /** The same bank, wrapped in a pool. */
 export function syntheticPool(options: SyntheticBankOptions = {}): ItemPool {
   return new ItemPool(syntheticBank(options));
+}
+
+export interface MixedBankOptions extends SyntheticBankOptions {
+  /**
+   * Fraction of the bank that is polytomous, in [0, 1]. Default 0.2 — roughly
+   * the constructed-response share of a typical mixed form.
+   */
+  readonly polytomousFraction?: number;
+  /** Categories a polytomous item scores into, drawn uniformly. Default 3 to 5. */
+  readonly categories?: { readonly min?: number; readonly max?: number };
+  /**
+   * Which polytomous family to generate. Default `graded`.
+   *
+   * `partial-credit` fixes discrimination at 1 by definition, so a bank
+   * generated in that family ignores the discrimination distribution.
+   */
+  readonly polytomousModel?: PolytomousModel;
+}
+
+/**
+ * Generate a bank mixing dichotomous and polytomous items.
+ *
+ * The polytomous items are placed on the same difficulty distribution as the
+ * dichotomous ones, with their thresholds spread around that location. That
+ * spread is the parameter that matters: thresholds bunched together make an
+ * item behave almost dichotomously, since the middle categories are never
+ * modal, while thresholds spread too far leave dead bands where the item
+ * informs about nothing. A spacing near one logit is what calibrated rubrics
+ * tend to look like.
+ *
+ * Graded thresholds are sorted before construction. They are drawn around a
+ * location and would otherwise arrive unordered, which the graded model rejects
+ * — correctly, since unordered cumulative boundaries are not a bank you could
+ * calibrate. The partial credit families keep the draw order, because a
+ * reversed step there is a legitimate item.
+ */
+export function syntheticMixedBank(options: MixedBankOptions = {}): AnyItem[] {
+  const size = options.size ?? 300;
+  const fraction = options.polytomousFraction ?? 0.2;
+  if (!(fraction >= 0 && fraction <= 1)) {
+    throw new RangeError(
+      `syntheticMixedBank: polytomousFraction must lie in [0, 1], received ${fraction}`,
+    );
+  }
+  const minCategories = options.categories?.min ?? 3;
+  const maxCategories = options.categories?.max ?? 5;
+  if (!Number.isInteger(minCategories) || minCategories < 2) {
+    throw new RangeError(
+      `syntheticMixedBank: minimum categories must be an integer of at least 2, ` +
+        `received ${minCategories}`,
+    );
+  }
+  if (!Number.isInteger(maxCategories) || maxCategories < minCategories) {
+    throw new RangeError(
+      `syntheticMixedBank: maximum categories must be an integer of at least the ` +
+        `minimum (${minCategories}), received ${maxCategories}`,
+    );
+  }
+
+  const model = options.polytomousModel ?? 'graded';
+  const domains = options.domains ?? ['arrays', 'graphs', 'dynamic-programming'];
+  const logMean = options.discrimination?.logMean ?? Math.log(1.1);
+  const logSd = options.discrimination?.logSd ?? 0.35;
+  const difficultySd = options.difficultySd ?? 1.2;
+  const guessing = options.guessing ?? 0.25;
+  const rng: Rng = createRng(options.seed ?? 20260101);
+
+  const polytomousCount = Math.round(size * fraction);
+  const items: AnyItem[] = [];
+  let polytomousPlaced = 0;
+  for (let index = 0; index < size; index += 1) {
+    const domain = domains[index % domains.length] as string;
+    const a = Math.min(Math.exp(logMean + logSd * rng.nextNormal()), 4);
+    const location = difficultySd * rng.nextNormal();
+
+    // Deal the polytomous items evenly across the bank rather than clustering
+    // them at one end, so that a content-balanced or exposure-controlled policy
+    // meets both formats in every domain. The comparison is against the
+    // proportion of the bank passed so far, which places exactly
+    // `polytomousCount` of them however the two numbers divide.
+    const isPolytomousSlot =
+      polytomousPlaced < polytomousCount &&
+      (index + 1) * polytomousCount >= (polytomousPlaced + 1) * size;
+
+    if (!isPolytomousSlot) {
+      items.push(
+        makeItem(`${domain}-${String(index).padStart(4, '0')}`, threePL(a, location, guessing), {
+          domain,
+        }),
+      );
+      continue;
+    }
+
+    const categories =
+      minCategories + Math.floor(rng.next() * (maxCategories - minCategories + 1));
+    const steps = categories - 1;
+    const thresholds: number[] = [];
+    for (let k = 0; k < steps; k += 1) {
+      // Spread around the location at roughly one logit per step, jittered.
+      thresholds.push(location + (k - (steps - 1) / 2) + 0.25 * rng.nextNormal());
+    }
+    if (model === 'graded') thresholds.sort((left, right) => left - right);
+
+    const parameters =
+      model === 'graded'
+        ? graded(a, thresholds)
+        : model === 'partial-credit'
+          ? partialCredit(thresholds)
+          : generalizedPartialCredit(a, thresholds);
+
+    items.push(
+      makePolytomousItem(`${domain}-cr-${String(index).padStart(4, '0')}`, parameters, { domain }),
+    );
+    polytomousPlaced += 1;
+  }
+  return items;
+}
+
+/** The same mixed bank, wrapped in a pool. */
+export function syntheticMixedPool(options: MixedBankOptions = {}): ItemPool {
+  return new ItemPool(syntheticMixedBank(options));
 }

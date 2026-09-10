@@ -11,13 +11,17 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-All seven phases of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test
-runs end to end — `npm run demo` administers one against a synthetic bank and
-prints the transcript — `npm run study` compares selection policies over a
-simulated population, `npm run fit` estimates item parameters from a matrix of
-responses, and `npm run web` serves a browser interface that runs a session
-live and draws the posterior, the information curves and the bank's coverage
-as it goes.
+Phases 1 to 9 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+end to end — `npm run demo` administers one against a synthetic bank and prints
+the transcript — `npm run study` compares selection policies over a simulated
+population, `npm run fit` estimates item parameters from a matrix of responses,
+and `npm run web` serves a browser interface that runs a session live and draws
+the posterior, the information curves and the bank's coverage as it goes.
+
+Items may be scored in two categories or in many. The graded response, partial
+credit and generalized partial credit models sit alongside the dichotomous ones,
+and a single bank can hold both: `npm run mixed` runs an adaptive session over
+one. The web interface is still dichotomous-only, which is phase 11.
 
 ## Install and run
 
@@ -28,6 +32,7 @@ npm run typecheck # tsc --noEmit, library and web interface, including tests
 npm run build     # emits dist/ with declarations
 
 npm run demo      # one adaptive session, with its transcript
+npm run mixed     # an adaptive session over a bank mixing both item formats
 npm run study     # selection policies compared over a simulated population
 npm run recover   # how well each estimator recovers a known ability
 npm run fit       # item parameters calibrated from a matrix of responses
@@ -323,6 +328,76 @@ session.snapshot(); // theta, standardError, stopReason, full transcript
 Stopping rules are composable values — `fixedLength`, `standardErrorBelow`,
 `maximumItems`, `withMinimumLength`, `anyOf`, `allOf` — and `precisionTarget` is
 the conventional combination of a floor, a target and a ceiling.
+
+### Answering an item in more than two ways
+
+Scoring is done in categories throughout: the log-likelihood, the score
+function, the observed information and Warm's bias correction each sum over the
+category actually scored rather than over a right/wrong flag. A dichotomous
+response is the two-category case of that, not a separate path — selecting
+category `u` from `[1 - P, P]` picks out exactly the term `u log P + (1 - u) log Q`
+keeps — so every dichotomous result is unchanged.
+
+```ts
+import { estimateEap, estimateMle, estimateWle } from 'calibrate';
+
+const pattern = [
+  { item: mc1, response: 1 },           // a binary item
+  { item: mc2, response: 0 },
+  { item: essay, category: 2 },         // 2 of 3 on the rubric
+  { item: task, category: 1 },
+];
+
+estimateMle(pattern); // one likelihood, both formats
+estimateWle(pattern);
+estimateEap(pattern);
+```
+
+Boundedness is where the mixed case genuinely differs. A pattern has no finite
+maximum likelihood estimate only when every item scored *its own* maximum, which
+on a mixed form is not the same as "all correct": a candidate who answers every
+multiple-choice item correctly and scores 2 of 3 on the essay has a perfectly
+finite estimate, because the middle category says where on the scale they sit.
+Comparing each response against its own item's maximum rather than against 1 is
+the whole of the difference.
+
+Selection widens the same way. Kullback-Leibler divergence sums over all
+categories, so a four-category item separates two abilities through four
+probability ratios instead of one. The two-term dichotomous form is the sum over
+`[Q, P]`, so no dichotomous selection decision changes.
+
+### Running a mixed-format test
+
+```
+$ npm run mixed -- --theta 0.6 --seed 4242
+
+Bank: 300 items — 225 binary, 75 scored in more than two categories
+Candidate: true ability 0.60
+Stopping: standard error <= 0.3, between 5 and 25 items
+
+#   item                          format    loc     a  score    theta      se  est
+-------------------------------------------------------------------------------------
+1   dynamic-programming-cr-0203    3 cat   0.59  2.08    0/2   -0.624   0.787  eap
+2   arrays-cr-0075                 4 cat   0.40  2.43    1/3   -0.568   0.672  wle
+3   arrays-cr-0231                 4 cat  -0.03  1.76    1/3   -0.576   0.565  wle
+4   graphs-cr-0235                 4 cat  -0.55  1.96    3/3   -0.172   0.470  wle
+5   graphs-cr-0139                 5 cat   1.03  1.71    1/4   -0.180   0.431  wle
+...
+13  dynamic-programming-cr-0107    4 cat   1.96  1.67    0/3    0.343   0.298  wle
+
+Finished after 13 items (12 of them scored in more than two categories)
+Raw score 20 of 41 points; the model expected 19.13 at this ability
+Estimate 0.343 (true 0.600, error -0.257, 0.86 standard errors)
+Standard error 0.298
+Item maxima ranged from 1 to 4 points, so 13 items were worth 41 points.
+```
+
+Two things in that transcript are worth noticing. The selection policy reaches
+for the rubric items first — 12 of 13 — because a four-category item carries
+several times the information of a binary one at the same location, which is the
+practical argument for mixing formats at all. And the test stopped after 13
+items but 41 *points*: on a mixed form those are different numbers, and
+conflating them is the usual way a mixed test gets misreported.
 
 ### Comparing policies
 
@@ -702,6 +777,23 @@ tell its two item formats apart. A `kind: 'polytomous'` field would be
 representable in a state that contradicts the parameters beside it. Testing for
 the presence of `thresholds` cannot: the discriminator is the thing that
 actually differs.
+
+**One likelihood over categories, not two code paths.** The alternative was to
+keep the dichotomous likelihood and add a parallel polytomous one. That would
+have meant every estimator, every stopping rule and every selection policy
+existing twice, and the two drifting. Rewriting the likelihood over category
+indices instead makes the dichotomous case fall out as the two-category
+special case. The evidence that this changed nothing is that the whole existing
+suite — most of it dichotomous — passes untouched against the generalised code.
+
+**One simulation draw convention.** `simulateCategory` delegates to
+`simulateResponse` for dichotomous items rather than deriving them through its
+own inverse-CDF loop. Both consume one uniform draw and both give the same
+distribution, but they map a given draw to opposite outcomes: walking `[Q, P]`
+upward returns 1 when `draw >= Q`, while the Bernoulli comparison returns 1 when
+`draw < P`. Two conventions in one engine would mean a seeded simulation gave
+different answers depending on which function the caller reached for, and every
+replayable transcript would quietly change meaning.
 
 **Bracket first, then Newton.** The 3PL log-likelihood is not guaranteed to be
 unimodal, and its observed information can be negative — a correct answer to a

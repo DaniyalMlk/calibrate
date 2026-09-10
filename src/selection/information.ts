@@ -1,6 +1,9 @@
 import { simpson } from '../core/quadrature.js';
-import type { Item } from '../models/item.js';
-import { itemInformation, probabilityCorrect } from '../models/response.js';
+import {
+  categoryProbabilitiesOf,
+  informationOf,
+  type AnyItem,
+} from '../models/mixed.js';
 import { rankByScore, type SelectionContext, type Selector } from './selector.js';
 
 /**
@@ -15,10 +18,10 @@ import { rankByScore, type SelectionContext, type Selector } from './selector.js
 export function maximumInformationSelector(): Selector {
   return {
     name: 'maximum-information',
-    select(context: SelectionContext): Item | null {
+    select(context: SelectionContext): AnyItem | null {
       if (context.candidates.length === 0) return null;
       const ranked = rankByScore(context.candidates, (item) =>
-        itemInformation(item.parameters, context.theta),
+        informationOf(item, context.theta),
       );
       return ranked[0]?.item ?? null;
     },
@@ -26,25 +29,36 @@ export function maximumInformationSelector(): Selector {
 }
 
 /**
- * The Kullback–Leibler information an item carries about distinguishing the
+ * The Kullback-Leibler information an item carries about distinguishing the
  * current ability estimate from a competing ability.
  *
- * `KL_i(theta_hat || theta) = P_i(theta_hat) ln[P_i(theta_hat)/P_i(theta)]
- *                           + Q_i(theta_hat) ln[Q_i(theta_hat)/Q_i(theta)]`
+ * `KL_i(theta_hat || theta) = sum_k P_ik(theta_hat) ln[P_ik(theta_hat) / P_ik(theta)]`
  *
  * Unlike Fisher information this is a global measure: it asks how well the item
  * separates two specified abilities, not how steep the likelihood is at a point.
+ *
+ * The familiar two-term dichotomous form is the sum over the categories
+ * `[Q, P]`, so widening this to all categories leaves every dichotomous
+ * selection decision unchanged while letting a polytomous item compete on the
+ * same scale. That matters for a mixed bank: a four-category item separates two
+ * abilities through four probability ratios rather than one, and a rule that
+ * only ever looked at `P` and `Q` would systematically undervalue it.
  */
-export function kullbackLeiblerDivergence(item: Item, thetaHat: number, theta: number): number {
-  const pHat = probabilityCorrect(item.parameters, thetaHat);
-  const qHat = 1 - pHat;
-  const p = probabilityCorrect(item.parameters, theta);
-  const q = 1 - p;
+export function kullbackLeiblerDivergence(
+  item: AnyItem,
+  thetaHat: number,
+  theta: number,
+): number {
+  const atEstimate = categoryProbabilitiesOf(item, thetaHat);
+  const atCompetitor = categoryProbabilitiesOf(item, theta);
   const floor = 1e-300;
-  return (
-    pHat * Math.log(Math.max(pHat, floor) / Math.max(p, floor)) +
-    qHat * Math.log(Math.max(qHat, floor) / Math.max(q, floor))
-  );
+  let total = 0;
+  for (let k = 0; k < atEstimate.length; k += 1) {
+    const p = atEstimate[k] as number;
+    if (p <= 0) continue;
+    total += p * Math.log(Math.max(p, floor) / Math.max(atCompetitor[k] as number, floor));
+  }
+  return total;
 }
 
 export interface KullbackLeiblerOptions {
@@ -86,7 +100,7 @@ export function kullbackLeiblerSelector(options: KullbackLeiblerOptions = {}): S
 
   return {
     name: 'kullback-leibler',
-    select(context: SelectionContext): Item | null {
+    select(context: SelectionContext): AnyItem | null {
       if (context.candidates.length === 0) return null;
       const answered = context.responses.length;
       const width = shrink && answered > 0 ? delta / Math.sqrt(answered) : delta;

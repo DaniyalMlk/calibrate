@@ -92,20 +92,27 @@ export {
 
 export {
   categoryCountOf,
+  categoryDerivativesOf,
   categoryProbabilitiesOf,
   categoryProbabilityOf,
+  categorySecondDerivativesOf,
+  discriminationOf,
   expectedScoreOf,
   formatCounts,
   informationOf,
   isPolytomous,
+  itemLocation,
   makePolytomousItem,
   maximumScoreOf,
   maximumTestScore,
   metricOf,
   requireValidCategory,
+  responseCategory,
+  responseItem,
   testCharacteristicCurve,
   testInformationOf,
   type AnyItem,
+  type AnyResponse,
   type CategoryResponse,
   type PolytomousItem,
 } from './models/mixed.js';
@@ -162,6 +169,8 @@ export {
 } from './estimation/posterior.js';
 
 export {
+  simulateCategories,
+  simulateCategory,
   simulateMatrix,
   simulateResponse,
   simulateResponses,
@@ -284,7 +293,14 @@ export {
   type TranscriptEntry,
 } from './session/session.js';
 
-export { syntheticBank, syntheticPool, type SyntheticBankOptions } from './simulation/bank.js';
+export {
+  syntheticBank,
+  syntheticMixedBank,
+  syntheticMixedPool,
+  syntheticPool,
+  type MixedBankOptions,
+  type SyntheticBankOptions,
+} from './simulation/bank.js';
 
 export {
   drawPopulation,

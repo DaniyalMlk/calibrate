@@ -76,9 +76,27 @@ tests that exercise the numerics against closed-form or published results.
 
 ## Phase 9 — Mixed-format measurement
 
-- [ ] Log-likelihood, score and observed information over categorical responses
-- [ ] Ability estimation from mixed-format response patterns
-- [ ] Boundedness of a mixed pattern: extreme scores across item maxima
-- [ ] Item selection and exposure accounting over a mixed pool
-- [ ] Adaptive sessions administering both formats
-- [ ] Command-line demonstration of a mixed-format test
+- [x] Log-likelihood, score and observed information over categorical responses
+- [x] Warm's bias correction summed over categories
+- [x] Ability estimation from mixed-format response patterns
+- [x] Boundedness of a mixed pattern: extreme scores across item maxima
+- [x] Item selection and exposure accounting over a mixed pool
+- [x] Adaptive sessions administering both formats
+- [x] Synthetic banks mixing both formats
+- [x] Command-line demonstration of a mixed-format test
+
+## Phase 10 — Scale linking and equating
+
+- [ ] Mean/mean and mean/sigma moment methods
+- [ ] Haebara and Stocking-Lord characteristic curve methods
+- [ ] Common-item non-equivalent groups design
+- [ ] Linking coefficients applied to a bank, both formats
+- [ ] Equating error under repeated sampling
+- [ ] Validation against published worked examples
+
+## Phase 11 — Polytomous items in the web interface
+
+- [ ] Category response curves for a selected item
+- [ ] Rubric-scored responses in the live session view
+- [ ] Expected score and the test characteristic curve
+- [ ] Format mix in the bank coverage view

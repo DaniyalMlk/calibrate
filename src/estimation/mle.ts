@@ -1,6 +1,6 @@
 import { bracketSignChange, safeguardedRoot } from '../core/root.js';
+import type { AnyResponse } from '../models/mixed.js';
 import { standardError as standardErrorOf } from '../models/response.js';
-import type { ScoredResponse } from '../models/response.js';
 import {
   expectedInformation,
   logLikelihood,
@@ -68,7 +68,7 @@ export interface MleOptions {
  * flag is what should be trusted.
  */
 export function estimateMle(
-  responses: readonly ScoredResponse[],
+  responses: readonly AnyResponse[],
   options: MleOptions = {},
 ): AbilityEstimate {
   const min = options.min ?? -5;
@@ -129,7 +129,7 @@ export function estimateMle(
 }
 
 function atBoundary(
-  responses: readonly ScoredResponse[],
+  responses: readonly AnyResponse[],
   theta: number,
   boundary: Exclude<BoundaryFlag, 'none'>,
 ): AbilityEstimate {

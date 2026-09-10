@@ -22,7 +22,8 @@ import {
   standardErrorBelow,
   withMinimumLength,
 } from '../src/session/stopping.js';
-import { simulateResponse } from '../src/simulation/respondent.js';
+import { simulateCategory } from '../src/simulation/respondent.js';
+import { itemLocation, type AnyItem } from '../src/models/mixed.js';
 
 function bankItems(count: number, a = 1.3): Item[] {
   return linspace(-3, 3, count).map((b, index) => makeItem(`i-${index}`, twoPL(a, b)));
@@ -40,7 +41,7 @@ describe('ItemPool', () => {
     ];
     const p = new ItemPool(items);
     expect(p.size).toBe(4);
-    expect(p.byId('c')?.parameters.b).toBe(2);
+    expect(itemLocation(p.byId('c') as AnyItem)).toBe(2);
     expect(p.byId('missing')).toBeUndefined();
     expect(p.domains()).toEqual(['arrays', 'graphs']);
     expect(p.inDomain('arrays').map((i) => i.id)).toEqual(['a', 'c']);
@@ -140,7 +141,7 @@ describe('AdaptiveSession', () => {
   it('runs a fixed-length test and stops for the stated reason', () => {
     const s = session();
     const rng = createRng(99);
-    const snapshot = s.run((item) => simulateResponse(item, 0.8, rng));
+    const snapshot = s.run((item) => simulateCategory(item, 0.8, rng));
     expect(snapshot.transcript).toHaveLength(10);
     expect(snapshot.stopReason?.rule).toBe('fixed-length(10)');
     expect(s.status).toBe('finished');
@@ -149,7 +150,7 @@ describe('AdaptiveSession', () => {
   it('never administers the same item twice', () => {
     const s = session({ stopping: fixedLength(40) });
     const rng = createRng(3);
-    const snapshot = s.run((item) => simulateResponse(item, -0.4, rng));
+    const snapshot = s.run((item) => simulateCategory(item, -0.4, rng));
     expect(new Set(snapshot.administeredIds).size).toBe(snapshot.administeredIds.length);
   });
 
@@ -158,15 +159,15 @@ describe('AdaptiveSession', () => {
     const second = session({ selector: randomesque(maximumInformationSelector(), 4) });
     const answersA = createRng(41);
     const answersB = createRng(41);
-    const a = first.run((item) => simulateResponse(item, 0.5, answersA));
-    const b = second.run((item) => simulateResponse(item, 0.5, answersB));
+    const a = first.run((item) => simulateCategory(item, 0.5, answersA));
+    const b = second.run((item) => simulateCategory(item, 0.5, answersB));
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
   it('records the estimate before and after each response', () => {
     const s = session({ stopping: fixedLength(6) });
     const rng = createRng(5);
-    const { transcript } = s.run((item) => simulateResponse(item, 1.2, rng));
+    const { transcript } = s.run((item) => simulateCategory(item, 1.2, rng));
     for (let i = 1; i < transcript.length; i += 1) {
       // Each entry's "before" is the previous entry's "after".
       expect(transcript[i]?.thetaBefore).toBeCloseTo(transcript[i - 1]?.thetaAfter as number, 12);
@@ -178,7 +179,7 @@ describe('AdaptiveSession', () => {
   it('tightens the standard error as the session proceeds', () => {
     const s = session({ stopping: fixedLength(25), estimator: eapEstimator() });
     const rng = createRng(11);
-    const { transcript } = s.run((item) => simulateResponse(item, 0.3, rng));
+    const { transcript } = s.run((item) => simulateCategory(item, 0.3, rng));
     const first = transcript[0]?.standardErrorAfter as number;
     const last = transcript[transcript.length - 1]?.standardErrorAfter as number;
     expect(last).toBeLessThan(first);
@@ -188,7 +189,7 @@ describe('AdaptiveSession', () => {
   it('stops when the precision target is met, before the ceiling', () => {
     const s = session({ stopping: precisionTarget(0.4, { minimum: 5, maximum: 40 }) });
     const rng = createRng(23);
-    const snapshot = s.run((item) => simulateResponse(item, 0.2, rng));
+    const snapshot = s.run((item) => simulateCategory(item, 0.2, rng));
     expect(snapshot.transcript.length).toBeGreaterThanOrEqual(5);
     expect(snapshot.transcript.length).toBeLessThan(40);
     expect(snapshot.standardError).toBeLessThanOrEqual(0.4);
@@ -198,7 +199,7 @@ describe('AdaptiveSession', () => {
   it('honours the minimum length even when two answers look precise', () => {
     const s = session({ stopping: precisionTarget(5, { minimum: 6, maximum: 40 }) });
     const rng = createRng(2);
-    const snapshot = s.run((item) => simulateResponse(item, 0, rng));
+    const snapshot = s.run((item) => simulateCategory(item, 0, rng));
     // The target is absurdly loose, so only the floor keeps the test going.
     expect(snapshot.transcript).toHaveLength(6);
   });
@@ -212,7 +213,7 @@ describe('AdaptiveSession', () => {
       seed: 1,
     });
     const rng = createRng(1);
-    const snapshot = s.run((item) => simulateResponse(item, 0, rng));
+    const snapshot = s.run((item) => simulateCategory(item, 0, rng));
     expect(snapshot.transcript).toHaveLength(4);
     expect(snapshot.stopReason?.rule).toBe('pool-exhausted');
   });
@@ -237,14 +238,14 @@ describe('AdaptiveSession', () => {
   it('returns null from nextItem once finished', () => {
     const s = session({ stopping: fixedLength(2) });
     const rng = createRng(1);
-    s.run((item) => simulateResponse(item, 0, rng));
+    s.run((item) => simulateCategory(item, 0, rng));
     expect(s.nextItem()).toBeNull();
   });
 
   it('exposes administered items and a serialisable snapshot', () => {
     const s = session({ stopping: fixedLength(5) });
     const rng = createRng(8);
-    s.run((item) => simulateResponse(item, 0.9, rng));
+    s.run((item) => simulateCategory(item, 0.9, rng));
     expect(s.administered.map((item) => item.id)).toEqual(s.snapshot().administeredIds);
     expect(() => JSON.parse(JSON.stringify(s.snapshot()))).not.toThrow();
   });
@@ -253,7 +254,7 @@ describe('AdaptiveSession', () => {
     for (const trueTheta of [-1.2, 0, 1.2]) {
       const s = session({ stopping: fixedLength(35), estimator: wleEstimator() });
       const rng = createRng(1000 + trueTheta * 10);
-      const snapshot = s.run((item) => simulateResponse(item, trueTheta, rng));
+      const snapshot = s.run((item) => simulateCategory(item, trueTheta, rng));
       expect(Math.abs(snapshot.theta - trueTheta)).toBeLessThan(3 * snapshot.standardError);
       expect(snapshot.standardError).toBeLessThan(0.4);
     }
@@ -267,21 +268,21 @@ describe('AdaptiveSession', () => {
     const trueTheta = 1.1;
 
     const adaptive = session({ stopping: fixedLength(length) });
-    const snapshot = adaptive.run((item) => simulateResponse(item, trueTheta, createRng(31)));
+    const snapshot = adaptive.run((item) => simulateCategory(item, trueTheta, createRng(31)));
 
     const linear = linspace(-3, 3, length).map((b, index) => makeItem(`lin-${index}`, twoPL(1.3, b)));
     const linearError = standardError(testInformation(linear, snapshot.theta));
 
     expect(snapshot.standardError).toBeLessThan(linearError);
     // And the adaptive test concentrates its items near the candidate.
-    const chosen = adaptive.administered.map((item) => item.parameters.b);
+    const chosen = adaptive.administered.map((item) => itemLocation(item));
     expect(mean(chosen)).toBeGreaterThan(0.5);
   });
 
   it('reaches a stated precision target and stops there', () => {
     const s = session({ stopping: precisionTarget(0.35, { minimum: 5, maximum: 60 }) });
     const rng = createRng(31);
-    const snapshot = s.run((item) => simulateResponse(item, 0.4, rng));
+    const snapshot = s.run((item) => simulateCategory(item, 0.4, rng));
     expect(snapshot.standardError).toBeLessThanOrEqual(0.35);
     expect(snapshot.stopReason?.rule).toMatch(/standard-error-below/);
     // Stopping is not delayed past the point the target is met.
@@ -327,7 +328,7 @@ describe('session estimators', () => {
       seed: 4,
     });
     const rng = createRng(6);
-    const snapshot = s.run((item) => simulateResponse(item, 1.5, rng));
+    const snapshot = s.run((item) => simulateCategory(item, 1.5, rng));
     expect(Number.isFinite(snapshot.theta)).toBe(true);
     expect(snapshot.transcript).toHaveLength(8);
   });

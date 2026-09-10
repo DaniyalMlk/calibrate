@@ -1,6 +1,12 @@
 import { createRng, type Rng } from '../core/random.js';
 import { ResponseMatrix, type Cell } from '../calibration/matrix.js';
 import type { Item } from '../models/item.js';
+import {
+  categoryProbabilitiesOf,
+  isPolytomous,
+  type AnyItem,
+  type CategoryResponse,
+} from '../models/mixed.js';
 import { probabilityCorrect, type Response, type ScoredResponse } from '../models/response.js';
 
 /**
@@ -13,6 +19,48 @@ import { probabilityCorrect, type Response, type ScoredResponse } from '../model
  */
 export function simulateResponse(item: Item, trueTheta: number, rng: Rng): Response {
   return rng.next() < probabilityCorrect(item.parameters, trueTheta) ? 1 : 0;
+}
+
+/**
+ * Draw a category from a respondent of the given true ability, for an item of
+ * either format.
+ *
+ * The general case is an inverse-CDF draw down the item's category
+ * distribution. The dichotomous case delegates to `simulateResponse` rather
+ * than falling out of the same loop, and that is deliberate: both consume one
+ * uniform draw and both produce the same distribution, but they map a given
+ * draw to opposite outcomes. Walking `[Q, P]` upward returns 1 when
+ * `draw >= Q`, while the Bernoulli comparison returns 1 when `draw < P`. Either
+ * is correct in isolation; having two of them in one engine would mean a seeded
+ * simulation gave different answers depending on which function the caller
+ * reached for, and every replayable transcript in the test suite would silently
+ * change meaning. One convention, delegated to.
+ *
+ * The last category is returned as the fallback rather than being reached by
+ * accumulation. Floating-point summation of the category probabilities need not
+ * land on exactly 1, so a uniform draw of 0.9999999999 against a cumulative sum
+ * that stops at 0.9999999998 would otherwise fall off the end of the loop and
+ * return nothing at all.
+ */
+export function simulateCategory(item: AnyItem, trueTheta: number, rng: Rng): number {
+  if (!isPolytomous(item)) return simulateResponse(item, trueTheta, rng);
+  const probabilities = categoryProbabilitiesOf(item, trueTheta);
+  const draw = rng.next();
+  let cumulative = 0;
+  for (let k = 0; k < probabilities.length - 1; k += 1) {
+    cumulative += probabilities[k] as number;
+    if (draw < cumulative) return k;
+  }
+  return probabilities.length - 1;
+}
+
+/** Draw categories for a whole mixed-format item set from one respondent. */
+export function simulateCategories(
+  items: readonly AnyItem[],
+  trueTheta: number,
+  rng: Rng,
+): CategoryResponse[] {
+  return items.map((item) => ({ item, category: simulateCategory(item, trueTheta, rng) }));
 }
 
 /** Draw responses to a whole item set from a respondent of the given true ability. */

@@ -155,9 +155,21 @@ export class Store {
     this.advance();
   }
 
-  /** Draw the next item, if the session has not stopped. */
+  /**
+   * Draw the next item, if the session has not stopped.
+   *
+   * The session engine administers items of either format and so hands back the
+   * wider type. This interface builds its bank from `syntheticBank`, which is
+   * dichotomous throughout, so the pending item is resolved back through the
+   * same index the bank was built from rather than asserted. If a polytomous
+   * item ever reached this view the lookup would miss and the session would
+   * stop, which is the right failure for a view that cannot draw one: the
+   * charts here plot a difficulty and a single response curve, neither of which
+   * a rubric-scored item has.
+   */
   private advance(): void {
-    this.current = this.session.status === 'finished' ? null : this.session.nextItem();
+    const next = this.session.status === 'finished' ? null : this.session.nextItem();
+    this.current = next === null ? null : (this.byId.get(next.id) ?? null);
   }
 
   /** Record a response to the current item and draw the next. */
