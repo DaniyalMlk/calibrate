@@ -110,20 +110,53 @@ function defaultRule(options: CriterionOptions): QuadratureRule {
 }
 
 /**
- * Starting point for a criterion search.
+ * Starting points for a criterion search.
  *
- * Mean/sigma, when it is available. It costs nothing, lands close, and starting
- * a two-parameter search near the answer is worth more than any refinement of
- * the search itself. Where the locations have no spread — which mean/sigma
- * cannot handle — the identity is used instead.
+ * Both criteria have a spurious basin at large slopes, and it is not a
+ * numerical artefact but a property of the objective. Dividing every
+ * discrimination by a large `A` flattens every transformed response function
+ * towards its own midpoint, and a flat curve near the middle of the probability
+ * range scores better against a set of target curves than a steep curve in the
+ * wrong place does. So from a badly wrong starting point the criterion falls
+ * monotonically as `A` grows — measured on one 30-item anchor, the Haebara
+ * criterion drops from 12.09 at the true slope to 1.60 at six times it — until
+ * the transformed difficulties leave the range the item constructors accept and
+ * the objective becomes infinite. A search started out there slides down that
+ * slope and stops against the wall.
+ *
+ * The defence is to start from somewhere sensible and to try more than one
+ * place. Both moment methods are closed-form and effectively free, so the search
+ * runs from each of them, from the identity, and from any starting point the
+ * caller supplied, keeping whichever run ends at the lowest criterion. Four
+ * two-parameter searches cost almost nothing next to being confidently wrong.
  */
-function startingPoint(pairs: readonly CommonItemPair[], options: CriterionOptions): ScaleTransform {
-  if (options.start !== undefined) return options.start;
-  try {
-    return meanSigma(pairs).transform;
-  } catch {
-    return scaleTransform(1, 0);
+function startingPoints(
+  pairs: readonly CommonItemPair[],
+  options: CriterionOptions,
+): ScaleTransform[] {
+  const candidates: ScaleTransform[] = [];
+  if (options.start !== undefined) candidates.push(options.start);
+  for (const method of [meanSigma, meanMean]) {
+    try {
+      candidates.push(method(pairs).transform);
+    } catch {
+      // A degenerate anchor defeats that moment method; the others still stand.
+    }
   }
+  candidates.push(scaleTransform(1, 0));
+
+  // Drop duplicates, which are common: on a well-behaved anchor the two moment
+  // methods can agree to the last bit.
+  const unique: ScaleTransform[] = [];
+  for (const candidate of candidates) {
+    const already = unique.some(
+      (seen) =>
+        Math.abs(seen.slope - candidate.slope) < 1e-12 &&
+        Math.abs(seen.intercept - candidate.intercept) < 1e-12,
+    );
+    if (!already) unique.push(candidate);
+  }
+  return unique;
 }
 
 /**
@@ -209,7 +242,6 @@ function minimiseCriterion(
   method: LinkingMethod,
   criterion: (transform: ScaleTransform) => number,
 ): LinkingResult {
-  const start = startingPoint(pairs, options);
   // The search runs on log(A) rather than A. The slope must stay positive — a
   // negative one reverses the ability order and the item constructors reject it
   // — and a simplex given a raw A will happily reflect across zero and spend
@@ -227,17 +259,34 @@ function minimiseCriterion(
     }
   };
 
-  const result = minimiseSimplex(objective, [Math.log(start.slope), start.intercept], {
-    maxEvaluations: options.maxEvaluations ?? 4000,
-    step: 0.05,
-  });
+  const budget = options.maxEvaluations ?? 4000;
+  let best: { transform: ScaleTransform; value: number; converged: boolean } | null = null;
+  for (const start of startingPoints(pairs, options)) {
+    const result = minimiseSimplex(objective, [Math.log(start.slope), start.intercept], {
+      maxEvaluations: budget,
+      step: 0.05,
+    });
+    if (best === null || result.value < best.value) {
+      best = {
+        transform: scaleTransform(
+          Math.exp(result.point[0] as number),
+          result.point[1] as number,
+        ),
+        value: result.value,
+        converged: result.converged,
+      };
+    }
+  }
+  if (best === null) {
+    throw new Error(`${method}: no usable starting point for the criterion search`);
+  }
 
   return {
-    transform: scaleTransform(Math.exp(result.point[0] as number), result.point[1] as number),
+    transform: best.transform,
     method,
     commonItems: pairs.length,
-    criterion: result.value,
-    converged: result.converged,
+    criterion: best.value,
+    converged: best.converged,
   };
 }
 
