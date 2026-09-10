@@ -221,6 +221,48 @@ export {
 export { simpson } from './core/quadrature.js';
 
 export {
+  minimiseSimplex,
+  type SimplexOptions,
+  type SimplexResult,
+} from './core/simplex.js';
+
+export {
+  composeTransforms,
+  describeTransform,
+  IDENTITY_TRANSFORM,
+  invertTransform,
+  scaleTransform,
+  transformAbility,
+  transformBank,
+  transformItem,
+  transformItemParameters,
+  transformPolytomousParameters,
+  type ScaleTransform,
+} from './linking/scale.js';
+
+export {
+  commonItems,
+  discriminationParameters,
+  locationParameters,
+  requireCommonItems,
+  type CommonItemPair,
+} from './linking/common.js';
+
+export {
+  haebara,
+  haebaraCriterion,
+  link,
+  linkAll,
+  meanMean,
+  meanSigma,
+  stockingLord,
+  stockingLordCriterion,
+  type CriterionOptions,
+  type LinkingMethod,
+  type LinkingResult,
+} from './linking/methods.js';
+
+export {
   rankByScore,
   type SelectionContext,
   type Selector,

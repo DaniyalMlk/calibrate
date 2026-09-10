@@ -85,14 +85,15 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Synthetic banks mixing both formats
 - [x] Command-line demonstration of a mixed-format test
 
-## Phase 10 — Scale linking and equating
+## Phase 10 — Scale linking
 
-- [ ] Mean/mean and mean/sigma moment methods
-- [ ] Haebara and Stocking-Lord characteristic curve methods
-- [ ] Common-item non-equivalent groups design
-- [ ] Linking coefficients applied to a bank, both formats
-- [ ] Equating error under repeated sampling
-- [ ] Validation against published worked examples
+- [x] The scale transformation, applied to items of either format
+- [x] Mean/mean and mean/sigma moment methods
+- [x] Haebara and Stocking-Lord characteristic curve methods
+- [x] Derivative-free optimiser for the criterion methods
+- [x] Common-item matching across two calibrations
+- [x] Linking coefficients applied to a bank, both formats
+- [x] Validation by exact recovery of a known transformation
 
 ## Phase 11 — Polytomous items in the web interface
 

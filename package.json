@@ -29,7 +29,8 @@
     "mixed": "tsx src/cli/main.ts mixed",
     "study": "tsx src/cli/main.ts study",
     "recover": "tsx src/cli/main.ts recover",
-    "fit": "tsx src/cli/main.ts fit"
+    "fit": "tsx src/cli/main.ts fit",
+    "link": "tsx src/cli/main.ts link"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

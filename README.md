@@ -11,7 +11,7 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 9 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+Phases 1 to 10 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
 end to end — `npm run demo` administers one against a synthetic bank and prints
 the transcript — `npm run study` compares selection policies over a simulated
 population, `npm run fit` estimates item parameters from a matrix of responses,
@@ -21,7 +21,9 @@ the posterior, the information curves and the bank's coverage as it goes.
 Items may be scored in two categories or in many. The graded response, partial
 credit and generalized partial credit models sit alongside the dichotomous ones,
 and a single bank can hold both: `npm run mixed` runs an adaptive session over
-one. The web interface is still dichotomous-only, which is phase 11.
+one. Two calibrations of the same anchor can be put on a single metric —
+`npm run link` shows the four linking methods side by side. The web interface is
+still dichotomous-only, which is phase 11.
 
 ## Install and run
 
@@ -36,6 +38,7 @@ npm run mixed     # an adaptive session over a bank mixing both item formats
 npm run study     # selection policies compared over a simulated population
 npm run recover   # how well each estimator recovers a known ability
 npm run fit       # item parameters calibrated from a matrix of responses
+npm run link      # two calibrations of one anchor put on a single metric
 npm run web       # the browser interface, on http://localhost:5173/web/
 ```
 
@@ -629,6 +632,94 @@ because an item that was never administered is the most concentrating thing a
 bank can hold, and a curve computed only over the items that were used would
 omit exactly that.
 
+### Putting two calibrations on one metric
+
+Item response theory fixes the ability scale only up to a linear transformation.
+Multiply every ability by `A` and add `B`, divide every discrimination by `A`
+and move every difficulty the same way as ability, and *every probability in the
+model is unchanged*. So a bank calibrated this year and the same bank
+recalibrated next year will place the same candidate at two different numbers,
+and neither is wrong.
+
+That matters the moment a test runs more than once. Without a linking step a
+bank cannot grow over time, scores cannot be reported comparably across forms,
+and parameters calibrated on somebody else's sample cannot be reused.
+
+```ts
+import {
+  commonItems,
+  linkAll,
+  stockingLord,
+  transformAbility,
+  transformBank,
+} from 'calibrate';
+
+// The same anchor items, calibrated twice on different samples.
+const pairs = commonItems(thisYearsBank, lastYearsBank);
+
+stockingLord(pairs).transform;      // { slope: 1.23, intercept: 0.74 }
+linkAll(pairs);                     // all four methods, for comparison
+
+const onOneMetric = transformBank(stockingLord(pairs).transform, thisYearsBank);
+transformAbility(stockingLord(pairs).transform, 1.0); // 1.98 on the old scale
+```
+
+Four methods, in increasing order of how much of the model they use:
+
+- `meanMean` — `A` from the ratio of mean discriminations. Cheapest, and the
+  least stable: discrimination estimates are the noisiest thing a calibration
+  produces, and this puts all of `A` on their ratio.
+- `meanSigma` — `A` from the ratio of location standard deviations. Steadier,
+  because difficulties are better determined than discriminations, but it
+  ignores the discriminations completely.
+- `haebara` — minimises the squared difference between the two calibrations'
+  response functions, **item by item**, integrated over an ability distribution.
+- `stockingLord` — minimises the same difference between the two **test
+  characteristic curves**, the summed expected scores.
+
+The last two differ in what they tolerate. Haebara asks the calibrations to
+agree item by item, so a misfitting anchor item contributes no matter what the
+rest of the anchor does. Stocking-Lord asks only that the totals agree, which is
+what a reported number-correct score actually depends on — and lets an item that
+disagrees one way be cancelled by one that disagrees the other.
+
+A polytomous item contributes every one of its thresholds to the moment methods,
+not their mean: each threshold is a separate location carrying its own evidence
+about where the two scales sit. The guessing and slipping asymptotes are carried
+across untouched, because they are probabilities rather than locations — the
+chance of guessing a four-option item does not depend on where anyone put the
+origin.
+
+### Linking in practice
+
+```
+$ npm run link -- --seed 777
+
+Anchor: 30 items, calibrated twice
+Reference sample: 2000 respondents, ability ~ N(0, 1)
+Second sample:    2000 respondents, ability ~ N(0.80, 1.30^2)
+
+Each calibration fixes the metric to its own sample, so the two disagree
+about the anchor even though it is the same anchor:
+
+  reference scale: mean difficulty 0.050, sd 1.217
+  second scale:    mean difficulty -0.564, sd 1.000
+
+method                  A        B    criterion
+--------------------------------------------------
+mean-mean          1.2448   0.7522            -
+mean-sigma         1.2171   0.7365            -
+haebara            1.2267   0.7427      2.72e-2
+stocking-lord      1.2316   0.7447      1.20e-3
+
+Taking Stocking-Lord: a candidate at ability 1.00 on the second scale sits at 1.976 on the reference scale.
+Test characteristic curves differed by up to 5.08 score points before linking and 0.10 after.
+```
+
+Five score points is the size of the problem: two candidates of identical
+ability, one sitting each form, would have been reported five points apart. After
+linking they are within a tenth of a point.
+
 ### Where a bank cannot measure
 
 ```ts
@@ -794,6 +885,29 @@ upward returns 1 when `draw >= Q`, while the Bernoulli comparison returns 1 when
 `draw < P`. Two conventions in one engine would mean a seeded simulation gave
 different answers depending on which function the caller reached for, and every
 replayable transcript would quietly change meaning.
+
+**Optimising log(A), not A.** The linking slope must stay positive: a negative
+one reverses the ability order, and the item constructors reject it. Given a raw
+`A`, a simplex will happily reflect across zero and spend its budget in a region
+where every candidate throws. Searching on the logarithm makes positivity a
+property of the parameterisation rather than a constraint the search has to be
+told about.
+
+**Several starting points for the criterion searches.** Both criteria have a
+spurious basin at large slopes, and it is a property of the objective rather
+than a numerical artefact: dividing every discrimination by a large `A` flattens
+each transformed response curve towards its midpoint, and a flat curve near the
+middle of the probability range scores better against the target curves than a
+steep curve in the wrong place. On a 30-item anchor the Haebara criterion falls
+from 12.09 at the true slope to 1.60 at six times it. A single-start search from
+a bad guess slides down that slope and returns a confident, converged, wrong
+answer. Both moment methods are closed-form and effectively free, so the search
+runs from each of them plus the identity and keeps the lowest criterion.
+
+**Refusing to rescale a partial credit item.** The model fixes discrimination at
+1 by definition, so rescaling one moves it into the generalized partial credit
+family. Doing that silently would change what the item *is* while appearing only
+to move it, so it throws instead.
 
 **Bracket first, then Newton.** The 3PL log-likelihood is not guaranteed to be
 unimodal, and its observed information can be negative — a correct answer to a

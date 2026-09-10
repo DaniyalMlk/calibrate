@@ -1,5 +1,6 @@
 import { DEMO_OPTIONS, runDemo } from './demo.js';
 import { FIT_OPTIONS, runFit } from './fit.js';
+import { LINK_OPTIONS, runLink } from './link.js';
 import { MIXED_OPTIONS, runMixed } from './mixed.js';
 import { describeOptions, type OptionSpecs } from './options.js';
 import { RECOVER_OPTIONS, runRecover } from './recover.js';
@@ -31,6 +32,11 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     summary: 'Measure how well an estimator recovers ability across the range',
     options: RECOVER_OPTIONS,
     run: runRecover,
+  },
+  link: {
+    summary: 'Calibrate one anchor on two samples and put the two scales on one metric',
+    options: LINK_OPTIONS,
+    run: runLink,
   },
   fit: {
     summary: 'Calibrate item parameters from responses, then report fit and bank health',
