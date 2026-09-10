@@ -4,7 +4,7 @@ import {
   type QuadratureRule,
 } from '../core/quadrature.js';
 import { bracketSignChange, safeguardedRoot } from '../core/root.js';
-import type { ScoredResponse } from '../models/response.js';
+import type { AnyResponse } from '../models/mixed.js';
 import { expectedInformation, logLikelihood, observedInformation, scoreFunction } from './likelihood.js';
 import type { AbilityEstimate } from './mle.js';
 import {
@@ -61,7 +61,7 @@ function ruleFor(prior: NormalPrior, options: BayesOptions): QuadratureRule {
  * estimator for the opening items of an adaptive test.
  */
 export function estimateEap(
-  responses: readonly ScoredResponse[],
+  responses: readonly AnyResponse[],
   options: BayesOptions = {},
 ): PosteriorEstimate {
   const prior = options.prior ?? STANDARD_NORMAL_PRIOR;
@@ -127,7 +127,7 @@ export interface MapOptions extends BayesOptions {
  * in the responses plus the information in the prior.
  */
 export function estimateMap(
-  responses: readonly ScoredResponse[],
+  responses: readonly AnyResponse[],
   options: MapOptions = {},
 ): PosteriorEstimate {
   const prior = options.prior ?? STANDARD_NORMAL_PRIOR;

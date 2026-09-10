@@ -2,14 +2,22 @@ import { requireFinite } from '../core/numeric.js';
 import { type Item, type ItemParameters, type Metric } from './item.js';
 import {
   categoryCount,
+  categoryDerivatives,
   categoryProbabilities,
+  categorySecondDerivatives,
   expectedCategoryScore,
   maximumScore,
   polytomousInformation,
   validatePolytomousParameters,
   type PolytomousParameters,
 } from './polytomous.js';
-import { itemInformation, probabilityCorrect } from './response.js';
+import {
+  itemInformation,
+  probabilityCorrect,
+  responseDerivative,
+  responseSecondDerivative,
+  type ScoredResponse,
+} from './response.js';
 
 /**
  * An item scored into three or more ordered categories.
@@ -48,6 +56,33 @@ export interface CategoryResponse {
   readonly item: AnyItem;
   /** The category scored, `0..maximumScoreOf(item)`. */
   readonly category: number;
+}
+
+/**
+ * A response of either shape.
+ *
+ * The dichotomous `ScoredResponse` carries a `response` of 0 or 1; the
+ * polytomous `CategoryResponse` carries a `category`. Those are the same number
+ * under two names — a dichotomous item's category index *is* its score — so the
+ * engine accepts either and normalises at the boundary rather than making
+ * callers convert.
+ */
+export type AnyResponse = ScoredResponse | CategoryResponse;
+
+/** The item a response of either shape was given to. */
+export function responseItem(response: AnyResponse): AnyItem {
+  return response.item;
+}
+
+/**
+ * The category a response of either shape scored.
+ *
+ * This is the whole of the adapter between the two formats: everything
+ * downstream — likelihood, score, information, boundedness — is written once
+ * against a category index.
+ */
+export function responseCategory(response: AnyResponse): number {
+  return 'category' in response ? response.category : response.response;
 }
 
 /** True when the item is scored into more than two ordered categories. */
@@ -113,6 +148,31 @@ export function categoryProbabilityOf(item: AnyItem, theta: number, k: number): 
     );
   }
   return categoryProbabilitiesOf(item, theta)[k] as number;
+}
+
+/**
+ * First derivatives of every category probability with respect to ability.
+ *
+ * For a dichotomous item this is `[-P', P']`: the two categories are the two
+ * sides of one curve, so whatever probability the correct category gains, the
+ * incorrect one loses. That is the two-category case of the polytomous identity
+ * that the derivatives sum to zero.
+ */
+export function categoryDerivativesOf(item: AnyItem, theta: number): number[] {
+  if (isPolytomous(item)) return categoryDerivatives(item.parameters, theta);
+  const slope = responseDerivative(item.parameters as ItemParameters, theta);
+  return [-slope, slope];
+}
+
+/**
+ * Second derivatives of every category probability with respect to ability.
+ *
+ * `[-P'', P'']` for a dichotomous item, for the same reason.
+ */
+export function categorySecondDerivativesOf(item: AnyItem, theta: number): number[] {
+  if (isPolytomous(item)) return categorySecondDerivatives(item.parameters, theta);
+  const curvature = responseSecondDerivative(item.parameters as ItemParameters, theta);
+  return [-curvature, curvature];
 }
 
 /** Fisher information contributed by an item of either format. */
