@@ -1,5 +1,6 @@
 import { DEMO_OPTIONS, runDemo } from './demo.js';
 import { FIT_OPTIONS, runFit } from './fit.js';
+import { MIXED_OPTIONS, runMixed } from './mixed.js';
 import { describeOptions, type OptionSpecs } from './options.js';
 import { RECOVER_OPTIONS, runRecover } from './recover.js';
 import { STUDY_OPTIONS, runStudyCommand } from './study.js';
@@ -15,6 +16,11 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     summary: 'Run one adaptive session against a synthetic bank and print the transcript',
     options: DEMO_OPTIONS,
     run: runDemo,
+  },
+  mixed: {
+    summary: 'Run an adaptive session over a bank mixing binary and rubric-scored items',
+    options: MIXED_OPTIONS,
+    run: runMixed,
   },
   study: {
     summary: 'Compare selection policies over a simulated population',
