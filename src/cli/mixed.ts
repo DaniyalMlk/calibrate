@@ -1,6 +1,7 @@
 import { createRng } from '../core/random.js';
 import {
   categoryCountOf,
+  deadCategories,
   discriminationOf,
   expectedScoreOf,
   formatCounts,
@@ -137,6 +138,25 @@ export function runMixed(argv: readonly string[]): void {
     process.stdout.write(
       `Item maxima ranged from 1 to ${widest} point${widest === 1 ? '' : 's'}, ` +
         `so ${snapshot.transcript.length} items were worth ${pointsAvailable} points.\n`,
+    );
+  }
+
+  // Rubric levels that were never the most likely outcome for anybody on this
+  // form. Reported because an item that carries a level it never expects to
+  // award is an item whose rubric says more than its parameters do, and the
+  // transcript above cannot show it: the level simply never appears.
+  const dead: string[] = [];
+  for (const item of administered) {
+    if (!isPolytomous(item)) continue;
+    const levels = deadCategories(item);
+    if (levels.length > 0) dead.push(`${item.id} (${levels.join(', ')})`);
+  }
+  if (dead.length > 0) {
+    process.stdout.write(
+      `\n${dead.length} administered rubric ${dead.length === 1 ? 'item carries a level' : 'items carry levels'} ` +
+        `that ${dead.length === 1 ? 'is' : 'are'} modal nowhere on [-4, 4] — adjacent ` +
+        `thresholds collapsed, so the level separates nothing:\n` +
+        dead.map((entry) => `  ${entry}\n`).join(''),
     );
   }
 }

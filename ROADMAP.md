@@ -97,7 +97,8 @@ tests that exercise the numerics against closed-form or published results.
 
 ## Phase 11 — Polytomous items in the web interface
 
-- [ ] Category response curves for a selected item
+- [x] Category response curves for a selected item
 - [x] Rubric-scored responses in the live session view
-- [ ] Expected score and the test characteristic curve
+- [x] Expected score and the test characteristic curve
 - [x] Format mix in the bank coverage view
+- [x] Levels that are modal nowhere, reported in the interface and the CLI

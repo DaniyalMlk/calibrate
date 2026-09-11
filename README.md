@@ -11,12 +11,13 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 10 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+Phases 1 to 11 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
 end to end — `npm run demo` administers one against a synthetic bank and prints
 the transcript — `npm run study` compares selection policies over a simulated
 population, `npm run fit` estimates item parameters from a matrix of responses,
 and `npm run web` serves a browser interface that runs a session live and draws
-the posterior, the information curves and the bank's coverage as it goes.
+the posterior, the response curves, the information curves and the bank's
+coverage as it goes.
 
 Items may be scored in two categories or in many. The graded response, partial
 credit and generalized partial credit models sit alongside the dichotomous ones,
@@ -794,13 +795,17 @@ standard error, the length ceiling, the simulated ability and the share of the
 bank that is rubric-scored are all live controls, and every panel re-renders
 from the same configuration.
 
-Four panels:
+Six panels:
 
 - **Session** — the item awaiting a response and its parameters, the running
   estimate, the raw score as points out of points available, and the stopping
   rule's verdict.
 - **Ability posterior** — the density with its nested 50, 80 and 95 percent
   credible bands, redrawn per response.
+- **Category response curves** — every category of the pending item across the
+  ability range, labelled at its own peak, with the item's information below.
+- **Expected score** — the test characteristic curve over the administered
+  items, with the observed score marked against it.
 - **Information and precision** — test information across the ability range,
   with a rug of item locations along the baseline, and the standard error of
   measurement below it on the same ability axis.
@@ -808,7 +813,7 @@ Four panels:
   reach at each ability, with its coverage gaps and its format mix, and a
   Lorenz curve over item exposure across a simulated population.
 
-Four decisions shaped it.
+Five decisions shaped it.
 
 **No bundler and no runtime dependencies.** `tsc` emits ES modules whose import
 specifiers are already what a browser resolves, so the browser loads the
@@ -842,6 +847,24 @@ category that is not 1 as "wrong" turns a 3 of 4 — a strong performance — in
 a failure. The answer row is rebuilt per item rather than fixed, and the
 keyboard map is read at the keypress: a digit above the pending item's maximum
 does nothing, rather than being clamped to a score the candidate did not earn.
+
+**Ordered categories take one hue, not several.** A rubric's levels are
+ordered — a 3 is a better answer than a 2 — so they are not five identities to
+be told apart but one scale to be read along, and they get a single hue at
+stepped lightness. Five slots from the series palette would say these curves are
+unrelated, which is the one thing about them that is false. The ramp is
+re-stepped for each theme rather than flipped, every step clears 2:1 against its
+own surface, and each curve is labelled at its own peak — both because the
+curves cross constantly and because identity should never rest on colour alone.
+
+The category panel is there to answer a question the parameters cannot.
+`a = 2.49  b = [−0.36, +1.01, +1.56]` is the whole item, but nobody reads a
+threshold vector and sees whether the middle levels are ever modal. A level that
+is modal nowhere is one the model never expects to be anybody's most likely
+score — two thresholds collapsed onto each other, and a level that separates
+nothing. `modalCategories` and `deadCategories` compute it, the panel names it
+in the caption, and `npm run mixed` reports it for every rubric item it
+administered.
 
 Running it on a mixed bank surfaces something the numbers alone hide. Set the
 rubric share to 0.2 and run the 250 simulated candidates: the test gets shorter,

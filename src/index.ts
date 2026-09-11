@@ -96,6 +96,7 @@ export {
   categoryProbabilitiesOf,
   categoryProbabilityOf,
   categorySecondDerivativesOf,
+  deadCategories,
   discriminationOf,
   expectedScoreOf,
   formatCounts,
@@ -106,6 +107,7 @@ export {
   maximumScoreOf,
   maximumTestScore,
   metricOf,
+  modalCategories,
   requireValidCategory,
   responseCategory,
   responseItem,
@@ -114,6 +116,7 @@ export {
   type AnyItem,
   type AnyResponse,
   type CategoryResponse,
+  type ModalCategoryOptions,
   type PolytomousItem,
 } from './models/mixed.js';
 

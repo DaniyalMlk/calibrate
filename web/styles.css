@@ -38,6 +38,31 @@
   --series-5: #ca40a1;
   --series-6: #c21b0d;
 
+  /*
+   * The ordinal ramp, for a set whose order carries meaning.
+   *
+   * An item's response categories are ordered — category 3 is a better answer
+   * than category 2 — so they are not six identities to be told apart but one
+   * scale to be read along, and they take a single hue at stepped lightness
+   * rather than six slots from the series above. Six distinct hues would say
+   * these curves are unrelated, which is the one thing about them that is
+   * false.
+   *
+   * Light mode runs light to dark and dark mode runs dark to light: the ramp is
+   * re-stepped for each surface rather than flipped, so the low categories sit
+   * nearest the background in both and the high ones read as the emphatic end.
+   * Every step clears 2:1 against its own surface, and adjacent steps are at
+   * least ΔE 7.9 apart in OKLab. Identity is never carried by colour alone —
+   * each curve is labelled at its own peak, which is both where it is most
+   * separated from its neighbours and the place a reader is already looking.
+   */
+  --ordinal-1: #7fb9e8;
+  --ordinal-2: #4f9ade;
+  --ordinal-3: #2b7fce;
+  --ordinal-4: #1663ac;
+  --ordinal-5: #0d4a83;
+  --ordinal-6: #093459;
+
   /* Light theme roles. */
   --page: #f4f4f2;
   --surface: #fbfbfa;
@@ -117,6 +142,14 @@
   --status-good-text: #5fd37f;
   --status-warn-text: #f7b83d;
   --status-critical-text: #fe8a88;
+
+  /* The ordinal ramp, re-stepped for the dark surface rather than flipped. */
+  --ordinal-1: #154b79;
+  --ordinal-2: #1a6797;
+  --ordinal-3: #217fb6;
+  --ordinal-4: #4099d2;
+  --ordinal-5: #6eb5e4;
+  --ordinal-6: #9ed0f0;
 
   --band-inner: 0.16;
   --band-middle: 0.11;

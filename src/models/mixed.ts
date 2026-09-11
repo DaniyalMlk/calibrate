@@ -290,3 +290,78 @@ export function formatCounts(items: readonly AnyItem[]): {
   }
   return { dichotomous, polytomous, maximumScore: maximumTestScore(items) };
 }
+
+export interface ModalCategoryOptions {
+  /** Ability range to search. Default -4 to 4. */
+  readonly range?: readonly [number, number];
+  /** Points to evaluate. Default 201. */
+  readonly points?: number;
+}
+
+/**
+ * Which of an item's categories are the most likely outcome somewhere on the
+ * ability scale.
+ *
+ * The complement is the useful half. A category that is modal *nowhere* is a
+ * rubric level the model never expects to be anybody's most likely score — no
+ * matter how able or unable the candidate, some other level is always more
+ * probable. That is what two thresholds collapsing onto each other looks like
+ * from the outside, and it means the level is separating nothing: it should be
+ * merged with a neighbour, and until it is, a rubric with five levels is really
+ * a rubric with four and a level that only ever shows up by accident.
+ *
+ * Evaluated on a grid rather than solved. The modal category changes at the
+ * abilities where two category curves cross, and for the generalized partial
+ * credit family those crossings have no closed form — but the function being
+ * sampled is a step function with at most `categories - 1` transitions over the
+ * range, so a grid this dense misses a band only if that band is narrower than
+ * the spacing, in which case the level in question is doing no practical work
+ * either.
+ *
+ * Ties go to the lower category: a level that is only ever *tied* for most
+ * likely is not distinguishing a band of ability from the one below it.
+ */
+export function modalCategories(
+  item: AnyItem,
+  options: ModalCategoryOptions = {},
+): Set<number> {
+  const [lower, upper] = options.range ?? [-4, 4];
+  const points = options.points ?? 201;
+  if (!(lower < upper)) {
+    throw new RangeError(
+      `modalCategories: range must satisfy lower < upper, received [${lower}, ${upper}]`,
+    );
+  }
+  if (!Number.isInteger(points) || points < 2) {
+    throw new RangeError(
+      `modalCategories: points must be an integer of at least 2, received ${points}`,
+    );
+  }
+
+  const modal = new Set<number>();
+  const step = (upper - lower) / (points - 1);
+  for (let i = 0; i < points; i += 1) {
+    const probabilities = categoryProbabilitiesOf(item, i === points - 1 ? upper : lower + i * step);
+    let best = 0;
+    for (let k = 1; k < probabilities.length; k += 1) {
+      if ((probabilities[k] as number) > (probabilities[best] as number)) best = k;
+    }
+    modal.add(best);
+  }
+  return modal;
+}
+
+/**
+ * Categories that are modal nowhere, in order.
+ *
+ * The reportable form of `modalCategories`: the levels a rubric declares and
+ * the model never awards as a most-likely outcome.
+ */
+export function deadCategories(item: AnyItem, options: ModalCategoryOptions = {}): number[] {
+  const modal = modalCategories(item, options);
+  const dead: number[] = [];
+  for (let k = 0; k < categoryCountOf(item); k += 1) {
+    if (!modal.has(k)) dead.push(k);
+  }
+  return dead;
+}
