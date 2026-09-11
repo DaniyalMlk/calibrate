@@ -866,6 +866,19 @@ nothing. `modalCategories` and `deadCategories` compute it, the panel names it
 in the caption, and `npm run mixed` reports it for every rubric item it
 administered.
 
+The first thing that report found was a bug in the bank generator. Whether a
+middle level is ever modal depends on the threshold gap measured in the item's
+own metric, not in raw logits: for a graded item the level is modal somewhere
+exactly when `a · (b_k − b_{k−1})` exceeds `2 ln 2`, a bound that does not
+depend on `a` at all. `syntheticMixedBank` had been spreading every item at one
+flat logit, which is below that bound for any item less discriminating than
+1.39 — most of a bank drawn from a lognormal centred at 1.1 — and three quarters
+of its rubrics carried a level that separated nothing. Spacing in the right
+metric cuts that by more than half. It does not reach zero, and should not: a
+weakly discriminating item genuinely cannot separate five ordered levels inside
+the ability range a test can reach, and a generator that always managed it would
+make every rubric look better than rubrics are.
+
 Running it on a mixed bank surfaces something the numbers alone hide. Set the
 rubric share to 0.2 and run the 250 simulated candidates: the test gets shorter,
 which looks like good news, and the exposure Gini goes from 0.70 to 0.84 with
