@@ -50,12 +50,16 @@ function mountControls(root: HTMLElement, store: Store): void {
   const trueTheta = numberInput(DEFAULT_CONFIGURATION.trueTheta, 0.1, -3, 3, (value) =>
     store.reconfigure({ trueTheta: value }),
   );
+  const rubricShare = numberInput(DEFAULT_CONFIGURATION.polytomousFraction, 0.05, 0, 1, (value) =>
+    store.reconfigure({ polytomousFraction: value }),
+  );
 
   root.append(
     field('Selection policy', policy),
     field('Target SE', target),
     field('Max items', maximum),
     field('Simulated ability', trueTheta),
+    field('Rubric share', rubricShare),
   );
 }
 

@@ -4,7 +4,10 @@ import {
   credibleInterval,
   estimateEap,
   estimateMap,
+  graded,
+  logLikelihood,
   makeItem,
+  makePolytomousItem,
   normalPrior,
   posteriorCdf,
   posteriorDensity,
@@ -408,5 +411,62 @@ describe('posterior under a Rasch bank', () => {
 
     expect(correct.mean).toBeCloseTo(-incorrect.mean, 9);
     expect(correct.sd).toBeCloseTo(incorrect.sd, 9);
+  });
+});
+
+describe('posteriorDensity over a mixed-format pattern', () => {
+  const rubric = makePolytomousItem('cr-1', graded(1.3, [-0.8, 0.1, 0.9]));
+  const dichotomous = makeItem('mc-1', twoPL(1.2, 0.2));
+
+  it('is the normalised product of the mixed likelihood and the prior', () => {
+    // The whole of the widening is that the likelihood already accepted both
+    // formats. This pins that the density really is the function the engine
+    // scores with, and not a dichotomous approximation of it.
+    const responses = [
+      { item: dichotomous, response: 1 as const },
+      { item: rubric, category: 2 },
+    ];
+    const posterior = posteriorDensity(responses, { points: 401 });
+
+    const unnormalised = posterior.grid.map(
+      (theta) => Math.exp(logLikelihood(responses, theta)) * standardNormalDensity(theta),
+    );
+    let mass = 0;
+    for (const [i, value] of unnormalised.entries()) {
+      const edge = i === 0 || i === unnormalised.length - 1;
+      mass += (edge ? 0.5 : 1) * value * posterior.step;
+    }
+    for (const [i, value] of unnormalised.entries()) {
+      expect(posterior.density[i] as number).toBeCloseTo(value / mass, 9);
+    }
+  });
+
+  it('treats a top-category rubric score as the evidence it is', () => {
+    // The highest category on a three-threshold item is stronger evidence than
+    // the middle one, which is stronger than the lowest. Nothing subtle — but
+    // it is exactly what a posterior built on the dichotomous path got wrong,
+    // by reading category 3 as "not 1" and therefore as a wrong answer.
+    const means = [0, 1, 2, 3].map(
+      (category) => posteriorDensity([{ item: rubric, category }], { points: 801 }).mean,
+    );
+    for (let k = 1; k < means.length; k += 1) {
+      expect(means[k] as number).toBeGreaterThan(means[k - 1] as number);
+    }
+    expect(means[0] as number).toBeLessThan(0);
+    expect(means[3] as number).toBeGreaterThan(0);
+  });
+
+  it('matches the dichotomous posterior for a two-category rubric', () => {
+    // A graded item with one threshold is a 2PL item written in the other
+    // notation, so the two posteriors must agree to numerical precision. If
+    // they ever diverge, one of the two response models has drifted.
+    const twoCategory = makePolytomousItem('cr-2', graded(1.1, [0.35]));
+    const equivalent = makeItem('mc-2', twoPL(1.1, 0.35));
+
+    const viaCategory = posteriorDensity([{ item: twoCategory, category: 1 }], { points: 401 });
+    const viaResponse = posteriorDensity([{ item: equivalent, response: 1 }], { points: 401 });
+
+    expect(viaCategory.mean).toBeCloseTo(viaResponse.mean, 10);
+    expect(viaCategory.sd).toBeCloseTo(viaResponse.sd, 10);
   });
 });

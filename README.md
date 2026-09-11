@@ -21,9 +21,11 @@ the posterior, the information curves and the bank's coverage as it goes.
 Items may be scored in two categories or in many. The graded response, partial
 credit and generalized partial credit models sit alongside the dichotomous ones,
 and a single bank can hold both: `npm run mixed` runs an adaptive session over
-one. Two calibrations of the same anchor can be put on a single metric —
-`npm run link` shows the four linking methods side by side. The web interface is
-still dichotomous-only, which is phase 11.
+one, and the browser interface administers a mixed bank too — a rubric item is
+answered at any of its levels, and the transcript reports the points awarded
+rather than a right/wrong verdict. Two calibrations of the same anchor can be
+put on a single metric — `npm run link` shows the four linking methods side by
+side.
 
 ## Install and run
 
@@ -784,26 +786,29 @@ does.
 npm run web
 ```
 
-An adaptive session in the browser: answer items as correct or incorrect, or
-let a simulated candidate at a chosen ability answer them, and watch the
-posterior tighten per response. The selection policy, the target standard
-error, the length ceiling and the simulated ability are all live controls, and
-every panel re-renders from the same configuration.
+An adaptive session in the browser, over a bank that mixes both item formats:
+answer a multiple-choice item as correct or incorrect and a rubric item at any
+of its levels, or let a simulated candidate at a chosen ability answer them, and
+watch the posterior tighten per response. The selection policy, the target
+standard error, the length ceiling, the simulated ability and the share of the
+bank that is rubric-scored are all live controls, and every panel re-renders
+from the same configuration.
 
 Four panels:
 
 - **Session** — the item awaiting a response and its parameters, the running
-  estimate, and the stopping rule's verdict.
+  estimate, the raw score as points out of points available, and the stopping
+  rule's verdict.
 - **Ability posterior** — the density with its nested 50, 80 and 95 percent
   credible bands, redrawn per response.
 - **Information and precision** — test information across the ability range,
-  with a rug of item difficulties along the baseline, and the standard error of
+  with a rug of item locations along the baseline, and the standard error of
   measurement below it on the same ability axis.
 - **Bank coverage and exposure** — the standard error the whole bank could
-  reach at each ability, with its coverage gaps, and a Lorenz curve over item
-  exposure across a simulated population.
+  reach at each ability, with its coverage gaps and its format mix, and a
+  Lorenz curve over item exposure across a simulated population.
 
-Three decisions shaped it.
+Four decisions shaped it.
 
 **No bundler and no runtime dependencies.** `tsc` emits ES modules whose import
 specifiers are already what a browser resolves, so the browser loads the
@@ -830,6 +835,21 @@ reciprocally related, so the point where the two lines cross is set entirely by
 the two ranges chosen and says nothing about the test. They are stacked on one
 shared ability axis instead, which keeps every comparison horizontal — the only
 direction in which those two quantities are comparable.
+
+**A rubric score is not a right/wrong verdict, anywhere on the page.** The score
+column renders a rubric level as points out of the maximum, because reading any
+category that is not 1 as "wrong" turns a 3 of 4 — a strong performance — into
+a failure. The answer row is rebuilt per item rather than fixed, and the
+keyboard map is read at the keypress: a digit above the pending item's maximum
+does nothing, rather than being clamped to a score the candidate did not earn.
+
+Running it on a mixed bank surfaces something the numbers alone hide. Set the
+rubric share to 0.2 and run the 250 simulated candidates: the test gets shorter,
+which looks like good news, and the exposure Gini goes from 0.70 to 0.84 with
+seven items in ten never administered at all. A rubric item carries several
+times the information of a dichotomous one, so unconstrained maximum information
+takes the rubrics until they run out. Switching the policy to randomesque
+spreads it back out and pays for it in length.
 
 ## Design decisions
 

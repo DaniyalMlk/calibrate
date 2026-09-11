@@ -4,11 +4,16 @@ import {
   createRng,
   exposureConcentration,
   exposureRatesFromIds,
+  formatCounts,
+  isPolytomous,
+  ItemPool,
   maximumInformationSelector,
   precisionTarget,
   randomesque,
   simulateSession,
+  syntheticMixedBank,
   syntheticPool,
+  type AnyItem,
 } from '../src/index.js';
 
 function ratesOf(counts: readonly number[]): ReadonlyMap<string, number> {
@@ -177,5 +182,83 @@ describe('exposureConcentration over simulated sessions', () => {
     });
 
     expect(greedy).toBeGreaterThan(randomised);
+  });
+
+  it('collapses onto the rubric items when a mixed bank is selected greedily', () => {
+    // A rubric item carries several times the Fisher information of a single
+    // dichotomous item at the same location, so an unconstrained maximum
+    // information policy meeting a mixed bank does not balance the two formats
+    // — it takes the rubrics until they run out.
+    //
+    // This is the cost of the mix, and it is not visible from the precision
+    // side, where the mix looks like nothing but good news: the test gets
+    // shorter because each item says more. The same fact read from the bank
+    // side is that a fifth of the items absorb most of the administrations.
+    const abilities = Array.from({ length: 150 }, (_, i) => -3 + (i / 149) * 6);
+    const stopping = precisionTarget(0.3, { minimum: 5, maximum: 30 });
+
+    const measure = (polytomousFraction: number) => {
+      const bank = syntheticMixedBank({ size: 200, polytomousFraction, seed: 42 });
+      const pool = new ItemPool(bank);
+      const sessions = abilities.map(
+        (theta, i) =>
+          simulateSession(
+            { name: 'max-information', selector: maximumInformationSelector(), stopping },
+            pool,
+            theta,
+            4000 + i,
+          ).itemIds,
+      );
+
+      const administered = sessions.flat();
+      const rubric = administered.filter(
+        (id) => isPolytomous(pool.byId(id) as AnyItem),
+      ).length;
+      return {
+        gini: exposureConcentration(pool.size, exposureRatesFromIds(sessions)).gini,
+        length: administered.length / sessions.length,
+        rubricShareOfAdministrations: rubric / administered.length,
+        rubricShareOfBank: formatCounts(bank).polytomous / bank.length,
+      };
+    };
+
+    const dichotomous = measure(0);
+    const mixed = measure(0.2);
+
+    expect(dichotomous.rubricShareOfAdministrations).toBe(0);
+    // A fifth of the bank taking well over half of what is administered.
+    expect(mixed.rubricShareOfBank).toBeCloseTo(0.2, 6);
+    expect(mixed.rubricShareOfAdministrations).toBeGreaterThan(0.5);
+    // Concentrated onto fewer items, and over a shorter test.
+    expect(mixed.gini).toBeGreaterThan(dichotomous.gini);
+    expect(mixed.length).toBeLessThan(dichotomous.length);
+  });
+
+  it('is relieved by exposure control on a mixed bank, at the cost of length', () => {
+    // The remedy is the one the dichotomous case already had. Randomesque
+    // selection over the top five spreads administration across the bank; the
+    // price is a longer test, since the item chosen is no longer the most
+    // informative one available.
+    const bank = syntheticMixedBank({ size: 200, polytomousFraction: 0.2, seed: 42 });
+    const pool = new ItemPool(bank);
+    const abilities = Array.from({ length: 150 }, (_, i) => -3 + (i / 149) * 6);
+    const stopping = precisionTarget(0.3, { minimum: 5, maximum: 30 });
+
+    const administer = (selector: Parameters<typeof simulateSession>[0]['selector']) => {
+      const sessions = abilities.map(
+        (theta, i) =>
+          simulateSession({ name: 'p', selector, stopping }, pool, theta, 4000 + i).itemIds,
+      );
+      return {
+        gini: exposureConcentration(pool.size, exposureRatesFromIds(sessions)).gini,
+        length: sessions.reduce((total, ids) => total + ids.length, 0) / sessions.length,
+      };
+    };
+
+    const greedy = administer(maximumInformationSelector());
+    const spread = administer(randomesque(maximumInformationSelector(), 5));
+
+    expect(spread.gini).toBeLessThan(greedy.gini);
+    expect(spread.length).toBeGreaterThan(greedy.length);
   });
 });

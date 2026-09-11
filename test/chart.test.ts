@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { clampTo, linearScale, niceTicks } from '../web/app/chart/scale.js';
-import { describeParameters, fixed, interval, percent, signed } from '../web/app/format.js';
+import { describeItemParameters, fixed, interval, percent, signed } from '../web/app/format.js';
 
 /**
  * The pure parts of the web interface: axis ticks, scales and number
@@ -162,16 +162,29 @@ describe('interval and percent', () => {
   });
 });
 
-describe('describeParameters', () => {
+describe('describeItemParameters', () => {
   it('reports only the parameters that are doing something', () => {
     // The engine stores every item as a 4PL, so a Rasch item still carries a
     // c of 0 and a d of 1. Printing those would suggest they were estimated.
-    expect(describeParameters({ a: 1, b: 0.4, c: 0, d: 1 })).toBe('a = 1.00   b = +0.40');
-    expect(describeParameters({ a: 1.42, b: -0.31, c: 0.25, d: 1 })).toBe(
+    expect(describeItemParameters({ a: 1, b: 0.4, c: 0, d: 1 })).toBe('a = 1.00   b = +0.40');
+    expect(describeItemParameters({ a: 1.42, b: -0.31, c: 0.25, d: 1 })).toBe(
       'a = 1.42   b = −0.31   c = 0.25',
     );
-    expect(describeParameters({ a: 1.42, b: -0.31, c: 0.25, d: 0.98 })).toBe(
+    expect(describeItemParameters({ a: 1.42, b: -0.31, c: 0.25, d: 0.98 })).toBe(
       'a = 1.42   b = −0.31   c = 0.25   d = 0.98',
     );
+  });
+
+  it('writes a rubric item as its thresholds, not as a single difficulty', () => {
+    // A polytomous item has no b. Collapsing its thresholds to their mean and
+    // printing that under the name `b` would put a number on the card that a
+    // reader could not find anywhere in the item.
+    expect(describeItemParameters({ a: 1.3, thresholds: [-0.8, 0.1, 0.9] })).toBe(
+      'a = 1.30   b = [−0.80, +0.10, +0.90]',
+    );
+  });
+
+  it('writes a partial credit item, whose discrimination is fixed at one', () => {
+    expect(describeItemParameters({ a: 1, thresholds: [0] })).toBe('a = 1.00   b = [+0.00]');
   });
 });

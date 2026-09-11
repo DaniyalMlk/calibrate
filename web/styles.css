@@ -514,11 +514,39 @@ input.field__control {
   background: var(--surface);
 }
 
+.item-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s8);
+}
+
 .item-card__id {
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text-primary);
   word-break: break-all;
+}
+
+/*
+ * The format tag.
+ *
+ * Worn only by a rubric item, never by a dichotomous one. A badge on every item
+ * would be a column of identical labels a reader stops seeing; a badge on the
+ * minority format is the exception it marks. The hue is the same one the rug
+ * ticks and the category curves use, so format is one colour across the page.
+ */
+.tag {
+  flex: none;
+  padding: 1px var(--s6);
+  border: 1px solid color-mix(in oklab, var(--series-4) 42%, transparent);
+  border-radius: var(--r4);
+  background: color-mix(in oklab, var(--series-4) 13%, transparent);
+  color: var(--series-4);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .item-card__params {
@@ -541,6 +569,27 @@ input.field__control {
 .answer-row .button {
   flex: 1 1 0;
   min-height: 44px;
+}
+
+/*
+ * A rubric score button: the points stacked over the key that awards them.
+ *
+ * Column rather than row, because a five-category rubric puts five of these
+ * across a 360px aside and the side-by-side arrangement the two-button case
+ * uses would wrap the key under the label at a width the layout cannot avoid.
+ * Stacking makes the narrow case the designed one.
+ */
+.button--score {
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s6) var(--s4);
+}
+
+.button__score {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .kbd {

@@ -1,6 +1,35 @@
 import { linspace, mean } from '../core/numeric.js';
-import { informationPeak, standardError, testInformation } from '../models/response.js';
-import type { Item } from '../models/item.js';
+import { informationPeak, standardError } from '../models/response.js';
+import type { ItemParameters } from '../models/item.js';
+import {
+  discriminationOf,
+  formatCounts,
+  isPolytomous,
+  itemLocation,
+  testInformationOf,
+  type AnyItem,
+} from '../models/mixed.js';
+import { polytomousInformationPeak } from '../models/polytomous.js';
+
+/**
+ * The ability at which an item of either format is most informative.
+ *
+ * For a dichotomous item this is the closed-form peak of its own information
+ * curve. For a rubric-scored item there is no closed form — the sum over
+ * categories has no single maximiser to solve for — so it is found
+ * numerically. Both answer the same question, which is the one `itemsNearby`
+ * asks: where does this item actually do its work?
+ *
+ * Deliberately not `itemLocation`. A polytomous item's location is the mean of
+ * its thresholds, and an item whose thresholds straddle the location informs
+ * most somewhere near it but not at it. Reporting the location here would
+ * quietly answer a different question than the dichotomous branch does.
+ */
+function informationPeakOf(item: AnyItem): number {
+  return isPolytomous(item)
+    ? polytomousInformationPeak(item.parameters)
+    : informationPeak(item.parameters as ItemParameters);
+}
 
 /** What the bank can do at one point on the ability scale. */
 export interface CoveragePoint {
@@ -38,12 +67,33 @@ export interface BankHealth {
   readonly gaps: readonly CoverageGap[];
   /** Fraction of the evaluated range where the bank reaches the target. */
   readonly covered: number;
-  /** Mean, minimum and maximum item difficulty. */
+  /**
+   * Mean, minimum and maximum item location.
+   *
+   * A dichotomous item contributes its difficulty and a rubric-scored one the
+   * mean of its thresholds, so on a dichotomous bank this is exactly the
+   * difficulty summary it has always been.
+   */
   readonly difficulty: { readonly mean: number; readonly min: number; readonly max: number };
   /** Mean item discrimination. */
   readonly meanDiscrimination: number;
   /** Ability at which the bank is most informative. */
   readonly peak: number;
+  /**
+   * How the bank splits between formats, and the highest total score it could
+   * award if every item were administered.
+   *
+   * Reported because the mix changes what the coverage above means. Sixty
+   * dichotomous items and twelve four-category rubrics is not the same bank as
+   * seventy-two dichotomous items, even where the two reach identical standard
+   * errors: the rubric items carry several times the score range, so a gap in
+   * the region they cover costs more than the item count suggests.
+   */
+  readonly formats: {
+    readonly dichotomous: number;
+    readonly polytomous: number;
+    readonly maximumScore: number;
+  };
 }
 
 export interface BankHealthOptions {
@@ -76,8 +126,15 @@ export interface BankHealthOptions {
  * Reporting the gaps as intervals rather than as a list of failing grid points
  * is the useful form: "nothing above 1.75" is an item-writing brief, where
  * twelve consecutive rows of a table are a puzzle.
+ *
+ * The bank may mix formats. Everything here is computed through the
+ * format-agnostic accessors, so a rubric-scored item contributes its own
+ * information to the coverage rather than being dropped from it — which
+ * matters most exactly where such items tend to sit, since a bank that puts
+ * its constructed-response items at the top of the scale is a bank whose
+ * upper-range coverage is invisible without them.
  */
-export function bankHealth(bank: readonly Item[], options: BankHealthOptions = {}): BankHealth {
+export function bankHealth(bank: readonly AnyItem[], options: BankHealthOptions = {}): BankHealth {
   if (bank.length === 0) throw new RangeError('bankHealth: the bank is empty');
   const [lower, upper] = options.range ?? [-3, 3];
   const count = options.points ?? 25;
@@ -93,11 +150,11 @@ export function bankHealth(bank: readonly Item[], options: BankHealthOptions = {
     throw new RangeError(`bankHealth: target must be positive, received ${target}`);
   }
 
-  const peaks = bank.map((item) => informationPeak(item.parameters));
+  const peaks = bank.map(informationPeakOf);
   const grid = linspace(lower, upper, count);
 
   const points: CoveragePoint[] = grid.map((theta) => {
-    const information = testInformation(bank, theta);
+    const information = testInformationOf(bank, theta);
     const error = standardError(information);
     return {
       theta,
@@ -128,7 +185,7 @@ export function bankHealth(bank: readonly Item[], options: BankHealthOptions = {
     gaps.push({ from: open.from, to: open.to, worstStandardError: open.worst });
   }
 
-  const difficulties = bank.map((item) => item.parameters.b);
+  const difficulties = bank.map(itemLocation);
   const best = points.reduce((left, right) => (right.information > left.information ? right : left));
 
   return {
@@ -143,8 +200,9 @@ export function bankHealth(bank: readonly Item[], options: BankHealthOptions = {
       min: Math.min(...difficulties),
       max: Math.max(...difficulties),
     },
-    meanDiscrimination: mean(bank.map((item) => item.parameters.a)),
+    meanDiscrimination: mean(bank.map(discriminationOf)),
     peak: best.theta,
+    formats: formatCounts(bank),
   };
 }
 

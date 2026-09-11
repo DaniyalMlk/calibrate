@@ -1,5 +1,5 @@
 import { requireFinite } from '../core/numeric.js';
-import type { ScoredResponse } from '../models/response.js';
+import type { AnyResponse } from '../models/mixed.js';
 import { logLikelihood } from './likelihood.js';
 import {
   normalPrior,
@@ -132,9 +132,13 @@ function refinePeak(grid: readonly number[], density: readonly number[]): number
  * but a band drawn between them has vertices that bunch in the middle and
  * stretch at the tails, and the eye reads that as structure in the posterior
  * rather than structure in the quadrature.
+ *
+ * Responses may be of either format. The likelihood this integrates is written
+ * against a category index, and a dichotomous score of 0 or 1 is the
+ * two-category case of one, so a mixed pattern needs no separate path here.
  */
 export function posteriorDensity(
-  responses: readonly ScoredResponse[],
+  responses: readonly AnyResponse[],
   options: PosteriorOptions = {},
 ): Posterior {
   const prior = options.prior ?? STANDARD_NORMAL_PRIOR;
