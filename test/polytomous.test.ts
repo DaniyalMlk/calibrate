@@ -571,3 +571,72 @@ describe('category score variance', () => {
     }
   });
 });
+
+/**
+ * When is a middle category of a graded item ever the most likely outcome?
+ *
+ * The answer decides whether a rubric level is doing any work, and it is the
+ * property `syntheticMixedBank` has to generate against — so it is derived here
+ * rather than remembered, by bisecting for the gap at which the category
+ * appears, and only then compared against the closed form it turns out to be.
+ */
+describe('the threshold gap at which a middle graded category becomes modal', () => {
+  /** Smallest threshold gap at which category 1 of a three-category item is modal. */
+  function criticalGap(a: number): number {
+    let absent = 0.001;
+    let present = 20;
+    for (let i = 0; i < 200; i += 1) {
+      const gap = (absent + present) / 2;
+      const probabilities = linspace(-30, 30, 6001).map((theta) =>
+        categoryProbabilities(graded(a, [-gap / 2, gap / 2]), theta),
+      );
+      const modal = probabilities.some(
+        (row) =>
+          (row[1] as number) > (row[0] as number) && (row[1] as number) > (row[2] as number),
+      );
+      if (modal) present = gap;
+      else absent = gap;
+    }
+    return (absent + present) / 2;
+  }
+
+  it('is 2 ln 2 in the item’s own metric, whatever the discrimination', () => {
+    // The invariant, and the reason a generator cannot space thresholds in raw
+    // logits: the critical *raw* gap is 2 ln 2 / a, which runs from 1.98 logits
+    // at a = 0.7 to 0.46 at a = 3. A flat one-logit spacing is below it for
+    // every item less discriminating than a = 1.39.
+    for (const a of [0.6, 0.8, 1, 1.5, 2, 3]) {
+      expect(a * criticalGap(a)).toBeCloseTo(2 * Math.log(2), 3);
+    }
+  });
+
+  it('makes the middle category modal just above the critical gap and not below', () => {
+    const a = 1.2;
+    const critical = (2 * Math.log(2)) / a;
+    const modalSomewhere = (gap: number): boolean =>
+      linspace(-20, 20, 4001)
+        .map((theta) => categoryProbabilities(graded(a, [-gap / 2, gap / 2]), theta))
+        .some(
+          (row) =>
+            (row[1] as number) > (row[0] as number) && (row[1] as number) > (row[2] as number),
+        );
+
+    expect(modalSomewhere(critical * 1.02)).toBe(true);
+    expect(modalSomewhere(critical * 0.98)).toBe(false);
+  });
+
+  it('puts the modal peak of a just-critical category at the threshold midpoint', () => {
+    // At the critical gap the middle category's peak coincides with the point
+    // where the two neighbours are equal, which is what "just appearing" means
+    // and why the condition is a clean equality rather than an approximation.
+    const a = 1.1;
+    const gap = ((2 * Math.log(2)) / a) * 1.2;
+    const grid = linspace(-6, 6, 4001);
+    const rows = grid.map((theta) => categoryProbabilities(graded(a, [-gap / 2, gap / 2]), theta));
+    let peak = 0;
+    for (let i = 1; i < rows.length; i += 1) {
+      if (((rows[i] as number[])[1] as number) > ((rows[peak] as number[])[1] as number)) peak = i;
+    }
+    expect(grid[peak] as number).toBeCloseTo(0, 2);
+  });
+});
