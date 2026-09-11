@@ -415,22 +415,52 @@ function isItem<T>(value: T | undefined): value is T {
 
 function describeCoverage(health: BankHealth, model: ViewModel): string {
   const target = fixed(model.configuration.target);
+
+  let coverage: string;
   if (health.gaps.length === 0) {
-    return (
+    coverage =
       `All ${health.items} items together measure the whole range from ` +
       `${signed(health.range[0], 0)} to ${signed(health.range[1], 0)} to the target of ` +
-      `${target}. Best precision ${fixed(1 / Math.sqrt(health.peak), 3)} at the information peak.`
+      `${target}. Best precision ${fixed(1 / Math.sqrt(health.peak), 3)} at the information peak.`;
+  } else {
+    const worst = health.gaps.reduce((a, b) =>
+      b.worstStandardError > a.worstStandardError ? b : a,
     );
+    coverage =
+      `${percent(health.covered)} of the range reaches the target of ${target}. ` +
+      `${health.gaps.length} ${health.gaps.length === 1 ? 'gap' : 'gaps'}; the worst runs from θ ` +
+      `${signed(worst.from)} to ${signed(worst.to)}, where the whole bank can only reach a ` +
+      `standard error of ${fixed(worst.worstStandardError, 2)}. The next items to write belong ` +
+      `there.`;
   }
 
-  const worst = health.gaps.reduce((a, b) =>
-    b.worstStandardError > a.worstStandardError ? b : a,
-  );
+  return `${coverage} ${describeMix(health)}`;
+}
+
+/**
+ * The format mix, as a sentence rather than a pair of counts.
+ *
+ * The share of the *score* is the fact worth stating, not the share of the
+ * items. Three hundred items of which sixty are four-category rubrics is a bank
+ * where a fifth of the questions carry nearly half the points, and a reader
+ * told only "60 rubric items" has to do that arithmetic themselves before they
+ * can see what the coverage above rests on.
+ */
+function describeMix(health: BankHealth): string {
+  const { dichotomous, polytomous, maximumScore } = health.formats;
+  if (polytomous === 0) {
+    return `Every item is dichotomous, for ${maximumScore} points in all.`;
+  }
+  if (dichotomous === 0) {
+    return `Every item is rubric-scored, for ${maximumScore} points across ${polytomous} items.`;
+  }
+  // Each dichotomous item is worth exactly one point, so the rest of the
+  // maximum is what the rubrics carry.
+  const rubricPoints = maximumScore - dichotomous;
   return (
-    `${percent(health.covered)} of the range reaches the target of ${target}. ` +
-    `${health.gaps.length} ${health.gaps.length === 1 ? 'gap' : 'gaps'}; the worst runs from θ ` +
-    `${signed(worst.from)} to ${signed(worst.to)}, where the whole bank can only reach a ` +
-    `standard error of ${fixed(worst.worstStandardError, 2)}. The next items to write belong there.`
+    `${polytomous} of the ${health.items} items are rubric-scored: ` +
+    `${percent(polytomous / health.items)} of the bank carrying ` +
+    `${percent(rubricPoints / maximumScore)} of its ${maximumScore} points.`
   );
 }
 
