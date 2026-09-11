@@ -1,4 +1,5 @@
 import {
+  categoryCountOf,
   categoryProbabilitiesOf,
   expectedScoreOf,
   informationOf,
@@ -6,9 +7,11 @@ import {
   itemLocation,
   linspace,
   maximumScoreOf,
+  deadCategories,
   type AnyItem,
 } from '../../../src/index.js';
 import { attachCrosshair, Plot } from '../chart/plot.js';
+import { rampColour } from '../ordinal.js';
 import { haloText, html, polyline, svg } from '../chart/svg.js';
 import { fixed, percent, signed } from '../format.js';
 import { THETA_DOMAIN, type Store, type ViewModel } from '../state.js';
@@ -18,58 +21,6 @@ const EXPECTED = 'var(--series-3)';
 
 /** Ability values every curve in this panel is sampled at. */
 const GRID = linspace(THETA_DOMAIN[0], THETA_DOMAIN[1], 201);
-
-/** The ordinal ramp, in order. Index is the category, never the series slot. */
-const RAMP = [
-  'var(--ordinal-1)',
-  'var(--ordinal-2)',
-  'var(--ordinal-3)',
-  'var(--ordinal-4)',
-  'var(--ordinal-5)',
-  'var(--ordinal-6)',
-] as const;
-
-/**
- * The colour for category `k` of an item with `count` categories.
- *
- * The ramp is walked end to end whatever the category count, so the darkest
- * step always means the top category. Assigning from the low end instead would
- * make a three-category item's top score wear the colour a six-category item
- * uses for its middle, and a reader comparing two items would read that as a
- * difference in the items.
- */
-export function rampColour(k: number, count: number): string {
-  if (count <= 1) return RAMP[RAMP.length - 1] as string;
-  const position = (k / (count - 1)) * (RAMP.length - 1);
-  return RAMP[Math.round(position)] as string;
-}
-
-/**
- * Which categories are the most likely outcome at some ability on the grid.
- *
- * The complement is the finding this panel exists to surface: a category that
- * is modal nowhere is a rubric level the model never expects to be anybody's
- * most likely score, which is what two thresholds collapsing onto each other
- * looks like from the outside. Such a level is doing no discriminating work and
- * should be merged with its neighbour.
- *
- * Ties go to the lower category, which is the conservative reading: a level
- * that is only ever tied for most likely is not distinguishing a band of
- * ability from the one below it.
- */
-export function modalCategories(
-  probabilities: readonly (readonly number[])[],
-): ReadonlySet<number> {
-  const modal = new Set<number>();
-  for (const row of probabilities) {
-    let best = 0;
-    for (let k = 1; k < row.length; k += 1) {
-      if ((row[k] as number) > (row[best] as number)) best = k;
-    }
-    modal.add(best);
-  }
-  return modal;
-}
 
 /**
  * What one item's response model actually looks like.
@@ -324,7 +275,7 @@ export function mountCategories(root: HTMLElement, store: Store): void {
       ],
     }));
 
-    caption.textContent = describe(item, probabilities, information);
+    caption.textContent = describe(item, information);
   };
 
   store.subscribe((next) => {
@@ -356,12 +307,8 @@ export function mountCategories(root: HTMLElement, store: Store): void {
  * should be merged with its neighbour. Naming it in words means a reader gets
  * the finding without having to trace five curves to notice an absence.
  */
-function describe(
-  item: AnyItem,
-  probabilities: readonly (readonly number[])[],
-  information: readonly number[],
-): string {
-  const count = probabilities[0]?.length ?? 2;
+function describe(item: AnyItem, information: readonly number[]): string {
+  const count = categoryCountOf(item);
   const peakIndex = information.reduce(
     (best, value, i) => (value > (information[best] as number) ? i : best),
     0,
@@ -379,8 +326,9 @@ function describe(
     );
   }
 
-  const modal = modalCategories(probabilities);
-  const never = Array.from({ length: count }, (_, k) => k).filter((k) => !modal.has(k));
+  // The same grid the curves above are drawn on, so the sentence and the
+  // picture cannot disagree about which levels are modal.
+  const never = deadCategories(item, { range: THETA_DOMAIN, points: GRID.length });
   if (never.length === 0) {
     return (
       `Every one of the ${count} categories is the most likely outcome somewhere on the ` +

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  categoryProbabilitiesOf,
+  deadCategories,
   expectedScoreOf,
   graded,
   linspace,
+  modalCategories,
   makeItem,
   makePolytomousItem,
   maximumTestScore,
@@ -13,13 +14,12 @@ import {
   testCharacteristicCurve,
   twoPL,
 } from '../src/index.js';
-import { modalCategories, rampColour } from '../web/app/views/categories.js';
+import { rampColour } from '../web/app/ordinal.js';
 
 const GRID = linspace(-4, 4, 201);
 
-function curvesOf(item: Parameters<typeof categoryProbabilitiesOf>[0]): number[][] {
-  return GRID.map((theta) => categoryProbabilitiesOf(item, theta));
-}
+/** The grid the category panel draws on, so tests and panel agree exactly. */
+const GRID_OPTIONS = { range: [-4, 4] as const, points: 201 };
 
 describe('rampColour', () => {
   it('walks the ramp end to end whatever the category count', () => {
@@ -55,7 +55,7 @@ describe('modalCategories', () => {
     // Thresholds a full logit apart: each level owns a band of the scale, which
     // is what a rubric is supposed to do.
     const item = makePolytomousItem('spread', graded(1.2, [-1.5, -0.5, 0.5, 1.5]));
-    expect(modalCategories(curvesOf(item))).toEqual(new Set([0, 1, 2, 3, 4]));
+    expect(modalCategories(item, GRID_OPTIONS)).toEqual(new Set([0, 1, 2, 3, 4]));
   });
 
   it('finds a middle category modal nowhere when two thresholds collapse', () => {
@@ -64,7 +64,7 @@ describe('modalCategories', () => {
     // scoring exactly 2 is the most likely outcome, so the level is doing no
     // discriminating work and should be merged with a neighbour.
     const item = makePolytomousItem('collapsed', graded(1.4, [-1.2, 0.4, 0.45, 1.6]));
-    const modal = modalCategories(curvesOf(item));
+    const modal = modalCategories(item, GRID_OPTIONS);
     expect(modal.has(2)).toBe(false);
     expect(modal.has(1)).toBe(true);
     expect(modal.has(3)).toBe(true);
@@ -72,24 +72,46 @@ describe('modalCategories', () => {
 
   it('reports both categories of a dichotomous item as modal', () => {
     const item = makeItem('mc', twoPL(1.3, 0.2));
-    expect(modalCategories(curvesOf(item))).toEqual(new Set([0, 1]));
+    expect(modalCategories(item, GRID_OPTIONS)).toEqual(new Set([0, 1]));
   });
 
-  it('breaks a tie towards the lower category', () => {
-    // A level only ever *tied* for most likely is not separating a band of
-    // ability from the one below it, so it does not count as modal.
-    expect(modalCategories([[0.5, 0.5]])).toEqual(new Set([0]));
-    expect(modalCategories([[0.25, 0.25, 0.25, 0.25]])).toEqual(new Set([0]));
+  it('rejects a degenerate range or grid', () => {
+    const item = makePolytomousItem('any', graded(1.2, [-1, 0, 1]));
+    expect(() => modalCategories(item, { range: [1, 1] })).toThrow(/lower < upper/);
+    expect(() => modalCategories(item, { points: 1 })).toThrow(/at least 2/);
+  });
+
+  it('does not find a category modal outside the range it was asked about', () => {
+    // The range is part of the question. A level that is only ever modal above
+    // +3 is not modal on a scale that stops at +2, and reporting it as modal
+    // there would hide exactly the finding this is for.
+    const item = makePolytomousItem('high', graded(1.5, [-0.5, 2.5]));
+    expect(modalCategories(item, { range: [-4, 4] }).has(2)).toBe(true);
+    expect(modalCategories(item, { range: [-4, 1] }).has(2)).toBe(false);
   });
 
   it('handles a partial credit item with a reversed step', () => {
     // A reversed step is legitimate in the partial credit family — and it is
     // exactly the case that produces a category modal nowhere.
     const item = makePolytomousItem('reversed', partialCredit([0.8, -0.6, 1.4]));
-    const modal = modalCategories(curvesOf(item));
+    const modal = modalCategories(item, GRID_OPTIONS);
     expect(modal.size).toBeLessThan(4);
     expect(modal.has(0)).toBe(true);
     expect(modal.has(3)).toBe(true);
+  });
+});
+
+describe('deadCategories', () => {
+  it('is the complement of the modal set, in order', () => {
+    const item = makePolytomousItem('collapsed', graded(1.4, [-1.2, 0.4, 0.45, 1.6]));
+    expect(deadCategories(item, GRID_OPTIONS)).toEqual([2]);
+
+    const healthy = makePolytomousItem('spread', graded(1.2, [-1.5, -0.5, 0.5, 1.5]));
+    expect(deadCategories(healthy, GRID_OPTIONS)).toEqual([]);
+  });
+
+  it('reports nothing dead on a dichotomous item', () => {
+    expect(deadCategories(makeItem('mc', twoPL(1.3, 0.2)), GRID_OPTIONS)).toEqual([]);
   });
 });
 
