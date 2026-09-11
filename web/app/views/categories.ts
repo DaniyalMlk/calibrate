@@ -47,9 +47,9 @@ export function mountCategories(root: HTMLElement, store: Store): void {
       className: 'panel__note',
       text:
         'For the item awaiting a response: the probability of each category across the ability ' +
-        'range, the expected score as a share of the maximum, and what the item contributes to ' +
-        'precision below. A category that is modal nowhere is a rubric level the model never ' +
-        'expects to be the most likely outcome for anyone.',
+        'range, and what the item contributes to precision below. A category that is modal ' +
+        'nowhere is a rubric level the model never expects to be the most likely outcome for ' +
+        'anyone — usually two thresholds that have collapsed onto each other.',
     }),
   );
 
@@ -93,7 +93,8 @@ export function mountCategories(root: HTMLElement, store: Store): void {
 
     const top = maximumScoreOf(item);
     const count = top + 1;
-    badge.textContent = isPolytomous(item) ? `${count} categories` : 'dichotomous';
+    const rubric = isPolytomous(item);
+    badge.textContent = rubric ? `${count} categories` : 'dichotomous';
 
     legend.replaceChildren();
     for (let k = 0; k < count; k += 1) {
@@ -104,10 +105,10 @@ export function mountCategories(root: HTMLElement, store: Store): void {
         ),
       );
     }
-    legend.append(
-      legendItem('Expected score, share of maximum', EXPECTED),
-      legendItem('Item information', INFORMATION),
-    );
+    if (rubric) {
+      legend.append(legendItem('Expected score, share of maximum', EXPECTED));
+    }
+    legend.append(legendItem('Item information', INFORMATION));
 
     // Probability is a proportion: the axis runs 0 to 1 always, never fitted to
     // the curves. A category whose peak is 0.31 has to *look* like a category
@@ -192,28 +193,35 @@ export function mountCategories(root: HTMLElement, store: Store): void {
     // the dual-axis mistake wearing a disguise: two quantities in different
     // units sharing one vertical scale, where only one of them is in the units
     // the axis is labelled with. A reader would have read the dashed line's
-    // height off an axis that does not describe it.
+    // height off an axis that does not describe it. As a fraction of the item's
+    // maximum, the expected score *is* a proportion, so the percent axis
+    // describes it honestly.
     //
-    // As a fraction of the item's maximum, the expected score *is* a
-    // proportion, so it belongs on the 0-to-100% axis honestly — and on a
-    // dichotomous item it coincides exactly with the probability of a correct
-    // answer, which is the item characteristic curve the reader already knows.
+    // It is drawn only for a rubric item. On a dichotomous one the expected
+    // score and the probability of a correct answer are the same function —
+    // the maximum is 1, so the fraction is the probability — and the two paths
+    // land on exactly the same pixels. Drawing both told the reader there were
+    // two quantities here and hid the category curve under the dashes. The
+    // caption says the identity in words instead, which is what a reader can
+    // actually use.
     const expected = GRID.map((theta) => expectedScoreOf(item, theta));
-    curvePlot.dataLayer.append(
-      svg('path', {
-        d: polyline(
-          GRID.map((theta, i) => [
-            curvePlot.x.to(theta),
-            curvePlot.y.to((expected[i] as number) / top),
-          ]),
-        ),
-        fill: 'none',
-        stroke: EXPECTED,
-        'stroke-width': 2,
-        'stroke-dasharray': '5 3',
-        'stroke-linejoin': 'round',
-      }),
-    );
+    if (rubric) {
+      curvePlot.dataLayer.append(
+        svg('path', {
+          d: polyline(
+            GRID.map((theta, i) => [
+              curvePlot.x.to(theta),
+              curvePlot.y.to((expected[i] as number) / top),
+            ]),
+          ),
+          fill: 'none',
+          stroke: EXPECTED,
+          'stroke-width': 2,
+          'stroke-dasharray': '5 3',
+          'stroke-linejoin': 'round',
+        }),
+      );
+    }
 
     // Below: what the item contributes to precision, alone on an axis in its
     // own units.
@@ -256,11 +264,15 @@ export function mountCategories(root: HTMLElement, store: Store): void {
           colour: rampColour(k, count),
           value: percent((probabilities[index] as number[])[k] as number, 1),
         })),
-        {
-          key: 'expected score',
-          colour: EXPECTED,
-          value: `${fixed(expected[index] as number, 2)} of ${top}`,
-        },
+        ...(rubric
+          ? [
+              {
+                key: 'expected score',
+                colour: EXPECTED,
+                value: `${fixed(expected[index] as number, 2)} of ${top}`,
+              },
+            ]
+          : []),
       ],
     }));
 
@@ -320,9 +332,18 @@ function describe(item: AnyItem, information: readonly number[]): string {
   )}.`;
 
   if (!isPolytomous(item)) {
+    // Deliberately not "crossing at its difficulty". That is true only when the
+    // lower asymptote is zero. A four-option item has c = 0.25, so at its
+    // difficulty a correct answer already has probability (1 + c) / 2 = 0.625
+    // and the two curves crossed some way below it — naming the crossing as the
+    // difficulty would put a number in the caption that the picture contradicts.
+    const half = crossing(item);
     return (
-      `A dichotomous item: two categories, crossing at its difficulty of ` +
-      `${signed(itemLocation(item))}. ${where}`
+      `A dichotomous item of difficulty ${signed(itemLocation(item))}, where a correct ` +
+      `answer becomes more likely than not at θ ${signed(half)}` +
+      `${Math.abs(half - itemLocation(item)) > 0.05 ? ' — below the difficulty, because a ' +
+        'guessing floor lifts the curve' : ''}. Its expected score is the same function as ` +
+      `the correct-response curve, since the maximum is one point. ${where}`
     );
   }
 
@@ -341,6 +362,21 @@ function describe(item: AnyItem, information: readonly number[]): string {
     `${never.length === 1 ? 'that level' : 'those levels'} the most likely score, which is ` +
     `what adjacent thresholds collapsing onto each other looks like. ${where}`
   );
+}
+
+/**
+ * The ability at which a correct answer first becomes more likely than not.
+ *
+ * Read off the sampled grid rather than solved, so it is the crossing the
+ * reader can see on the chart and not a closed form that might disagree with it
+ * by a pixel. Returns the domain edge when the curve never crosses a half,
+ * which a very low discrimination with a high guessing floor can produce.
+ */
+function crossing(item: AnyItem): number {
+  for (const theta of GRID) {
+    if ((categoryProbabilitiesOf(item, theta)[1] as number) >= 0.5) return theta;
+  }
+  return THETA_DOMAIN[1];
 }
 
 function replaceSvg(container: HTMLElement, next: SVGSVGElement): void {
