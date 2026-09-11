@@ -1,8 +1,10 @@
 import {
+  isPolytomous,
+  itemLocation,
   linspace,
   standardError,
-  testInformation,
-  type Item,
+  testInformationOf,
+  type AnyItem,
 } from '../../../src/index.js';
 import { attachCrosshair, Plot } from '../chart/plot.js';
 import { crisp, html, polyline, svg } from '../chart/svg.js';
@@ -12,6 +14,12 @@ import { THETA_DOMAIN, type Store, type ViewModel } from '../state.js';
 const INFORMATION = 'var(--series-2)';
 const ERROR_SERIES = 'var(--series-1)';
 const CONTEXT = 'var(--de-emphasis)';
+/**
+ * The format channel, held to one hue across every panel that marks a
+ * rubric-scored item. Format is one fact, so it gets one colour; a panel that
+ * chose its own would make the reader learn the encoding twice.
+ */
+export const RUBRIC = 'var(--series-4)';
 
 /** Ability values the curves are sampled at. Shared by both panels. */
 const GRID = linspace(THETA_DOMAIN[0], THETA_DOMAIN[1], 161);
@@ -36,7 +44,9 @@ export function mountInformation(root: HTMLElement, store: Store): void {
       text:
         'How much the items administered so far can tell you, and at which abilities. The ' +
         'ticks along the baseline mark where each item sits, which is what gives the sum its ' +
-        'shape; the standard error below is the information\u2019s reciprocal square root.',
+        'shape \u2014 taller ticks are rubric-scored items, which carry several times the ' +
+        'information of a single dichotomous one. The standard error below is the ' +
+        'information\u2019s reciprocal square root.',
     }),
   );
 
@@ -53,7 +63,8 @@ export function mountInformation(root: HTMLElement, store: Store): void {
   legend.append(
     legendItem('Test information', INFORMATION),
     legendItem('Standard error', ERROR_SERIES),
-    legendItem('Item difficulty', CONTEXT),
+    legendItem('Item location', CONTEXT),
+    legendItem('Rubric item', RUBRIC),
   );
 
   const charts = html('div');
@@ -87,7 +98,7 @@ export function mountInformation(root: HTMLElement, store: Store): void {
 
   const draw = (current: ViewModel): void => {
     const administered = itemsAdministered(current);
-    const information = GRID.map((theta) => testInformation(administered, theta));
+    const information = GRID.map((theta) => testInformationOf(administered, theta));
     const errors = information.map((value) => (value > 0 ? standardError(value) : Number.NaN));
 
     // Information starts at zero. A magnitude on a truncated baseline overstates
@@ -109,30 +120,38 @@ export function mountInformation(root: HTMLElement, store: Store): void {
       infoPlot.dimFrame(0.4);
     }
 
-    // A rug of item difficulties along the baseline, rather than each item's own
+    // A rug of item locations along the baseline, rather than each item's own
     // information curve.
     //
     // The curves were the first attempt and they carry nothing: twenty-five
     // items peaking near 0.7 each, summed to a test information of 11, are a
     // flat grey smudge along the axis once both are on the scale the sum needs.
     // Where the items sit is the fact that explains the shape of the sum, and a
-    // tick per item at its difficulty says it in one channel, at full contrast,
+    // tick per item at its location says it in one channel, at full contrast,
     // without competing with the curve it explains.
+    //
+    // A rubric item gets a taller tick at the mean of its thresholds. Its
+    // location is a summary of several thresholds rather than a single
+    // difficulty, and it contributes several times the information of a
+    // dichotomous item at that point, so a tick of the same height would
+    // under-report it — but the height is the only thing that differs, because
+    // position on this axis means the same thing for both.
     for (const item of administered) {
-      const x = crisp(infoPlot.x.to(item.parameters.b));
+      const x = crisp(infoPlot.x.to(itemLocation(item)));
       if (x < infoPlot.plotLeft || x > infoPlot.plotRight) {
         continue;
       }
+      const rubric = isPolytomous(item);
       infoPlot.dataLayer.append(
         svg('line', {
           x1: x,
           x2: x,
           y1: infoPlot.plotBottom,
-          y2: infoPlot.plotBottom - 9,
-          stroke: CONTEXT,
-          'stroke-width': 1.5,
+          y2: infoPlot.plotBottom - (rubric ? 16 : 9),
+          stroke: rubric ? RUBRIC : CONTEXT,
+          'stroke-width': rubric ? 2 : 1.5,
           'stroke-linecap': 'round',
-          opacity: 0.85,
+          opacity: rubric ? 0.95 : 0.85,
         }),
       );
     }
@@ -288,7 +307,7 @@ function replaceSvg(container: HTMLElement, next: SVGSVGElement): void {
   }
 }
 
-function itemsAdministered(model: ViewModel): readonly Item[] {
+function itemsAdministered(model: ViewModel): readonly AnyItem[] {
   return model.responses.map((response) => response.item);
 }
 
