@@ -1,8 +1,10 @@
 import { html } from './chart/svg.js';
 import { DEFAULT_CONFIGURATION, Store, type PolicyName } from './state.js';
 import { mountBank } from './views/bank.js';
+import { mountCategories } from './views/categories.js';
 import { mountInformation } from './views/information.js';
 import { mountPosterior } from './views/posterior.js';
+import { mountScore } from './views/score.js';
 import { mountSession, mountTranscript } from './views/session.js';
 
 const POLICIES: readonly { readonly value: PolicyName; readonly label: string }[] = [
@@ -109,6 +111,8 @@ function main(): void {
   const controls = document.querySelector('#controls');
   const sessionPanel = document.querySelector('#session');
   const posteriorPanel = document.querySelector('#posterior');
+  const categoriesPanel = document.querySelector('#categories');
+  const scorePanel = document.querySelector('#score');
   const transcriptPanel = document.querySelector('#transcript');
   const informationPanel = document.querySelector('#information');
   const bankPanel = document.querySelector('#bank');
@@ -118,6 +122,8 @@ function main(): void {
     !(controls instanceof HTMLElement) ||
     !(sessionPanel instanceof HTMLElement) ||
     !(posteriorPanel instanceof HTMLElement) ||
+    !(categoriesPanel instanceof HTMLElement) ||
+    !(scorePanel instanceof HTMLElement) ||
     !(transcriptPanel instanceof HTMLElement) ||
     !(informationPanel instanceof HTMLElement) ||
     !(bankPanel instanceof HTMLElement) ||
@@ -130,6 +136,8 @@ function main(): void {
   mountControls(controls, store);
   mountSession(sessionPanel, store);
   mountPosterior(posteriorPanel, store);
+  mountCategories(categoriesPanel, store);
+  mountScore(scorePanel, store);
   mountInformation(informationPanel, store);
   mountBank(bankPanel, store);
   mountTranscript(transcriptPanel, store);
