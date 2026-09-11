@@ -38,16 +38,21 @@ export function percent(fraction: number, digits = 0): string {
 /**
  * Name the model a parameter set really is, as a reader would write it.
  *
- * The engine stores every item as a 4PL, so the model is a property of the
- * parameter values rather than of a tag on the item, and this reads it back
- * off the values.
+ * The engine stores every dichotomous item as a 4PL, so the model is a property
+ * of the parameter values rather than of a tag on the item, and this reads it
+ * back off the values. A polytomous item is named by its thresholds instead:
+ * there is no single difficulty to report, and writing the threshold mean where
+ * a reader expects `b` would be a number they could not find in the item.
  */
-export function describeParameters(parameters: {
-  readonly a: number;
-  readonly b: number;
-  readonly c: number;
-  readonly d: number;
-}): string {
+export function describeItemParameters(
+  parameters:
+    | { readonly a: number; readonly b: number; readonly c: number; readonly d: number }
+    | { readonly a: number; readonly thresholds: readonly number[] },
+): string {
+  if ('thresholds' in parameters) {
+    const thresholds = parameters.thresholds.map((value) => signed(value, 2)).join(', ');
+    return `a = ${fixed(parameters.a, 2)}   b = [${thresholds}]`;
+  }
   const parts = [`a = ${fixed(parameters.a, 2)}`, `b = ${signed(parameters.b, 2)}`];
   if (parameters.c > 0) {
     parts.push(`c = ${fixed(parameters.c, 2)}`);
