@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { linspace } from '../src/core/numeric.js';
 import { makeItem, twoPL, type Item } from '../src/models/item.js';
 import { standardError, testInformation } from '../src/models/response.js';
+import {
+  makePolytomousItem,
+  testInformationOf,
+  type PolytomousItem,
+} from '../src/models/mixed.js';
+import { graded, polytomousInformationPeak } from '../src/models/polytomous.js';
 import { bankHealth, healthTable } from '../src/calibration/health.js';
 import { syntheticBank } from '../src/simulation/bank.js';
 
@@ -100,11 +106,88 @@ describe('bankHealth', () => {
     expect(report.meanDiscrimination).toBeCloseTo(1.3, 12);
   });
 
+  it('reports a dichotomous bank as entirely dichotomous', () => {
+    const report = bankHealth(spread(-2, 2, 21));
+    expect(report.formats).toEqual({ dichotomous: 21, polytomous: 0, maximumScore: 21 });
+  });
+
   it('rejects an empty bank and a degenerate configuration', () => {
     expect(() => bankHealth([])).toThrow(RangeError);
     expect(() => bankHealth(healthy, { range: [1, 1] })).toThrow(RangeError);
     expect(() => bankHealth(healthy, { points: 1 })).toThrow(RangeError);
     expect(() => bankHealth(healthy, { target: 0 })).toThrow(RangeError);
+  });
+});
+
+describe('bankHealth over a mixed-format bank', () => {
+  /** Four-category graded items at the given locations, one logit per step. */
+  function rubrics(locations: readonly number[], a = 1.2): PolytomousItem[] {
+    return locations.map((location, index) =>
+      makePolytomousItem(
+        `cr-${index}`,
+        graded(a, [location - 1, location, location + 1]),
+      ),
+    );
+  }
+
+  it('agrees with the mixed-format test information function', () => {
+    const bank = [...spread(-1, 1, 6), ...rubrics([-0.5, 0.5, 1.5])];
+    for (const point of bankHealth(bank, { points: 7 }).points) {
+      expect(point.information).toBeCloseTo(testInformationOf(bank, point.theta), 9);
+      expect(point.standardError).toBeCloseTo(standardError(point.information), 9);
+    }
+  });
+
+  it('counts the two formats and the total score the bank could award', () => {
+    // Six dichotomous items score one point each; three four-category rubrics
+    // score three each, for a maximum of 6 + 9.
+    const report = bankHealth([...spread(-1, 1, 6), ...rubrics([-0.5, 0.5, 1.5])]);
+    expect(report.formats).toEqual({ dichotomous: 6, polytomous: 3, maximumScore: 15 });
+  });
+
+  it('credits the rubric items with the coverage they actually provide', () => {
+    // A bank with nothing above zero, then the same bank with three rubrics
+    // placed in the upper range. Dropping the polytomous items — which is what
+    // the dichotomous-only report did — would leave the upper gap in place.
+    const lower = spread(-2.5, 0, 30);
+    const withRubrics = [...lower, ...rubrics([1, 1.6, 2.2], 1.8)];
+
+    const before = bankHealth(lower, { range: [-2, 2.5], points: 41, target: 0.5 });
+    const after = bankHealth(withRubrics, { range: [-2, 2.5], points: 41, target: 0.5 });
+
+    expect(before.gaps.some((gap) => gap.from > 0.5)).toBe(true);
+    expect(after.covered).toBeGreaterThan(before.covered);
+    for (const point of after.points) {
+      expect(point.information).toBeGreaterThanOrEqual(
+        (before.points.find((p) => p.theta === point.theta)?.information ?? 0) - 1e-12,
+      );
+    }
+  });
+
+  it('locates a rubric item by its information peak, not by its threshold mean', () => {
+    // One rubric item whose thresholds straddle +1.5. The peak of a graded
+    // item's information is near — but not exactly at — the mean threshold, so
+    // a report that used the location would put `itemsNearby` in a different
+    // cell than the information actually justifies.
+    const item = rubrics([1.5], 1.6);
+    const report = bankHealth(item, { range: [0, 3], points: 7, target: 5 });
+    const near = report.points.filter((point) => point.itemsNearby === 1).map((p) => p.theta);
+    expect(near.length).toBeGreaterThan(0);
+    for (const theta of near) {
+      expect(Math.abs(theta - polytomousInformationPeak(item[0]!.parameters))).toBeLessThanOrEqual(
+        0.5 + 1e-9,
+      );
+    }
+  });
+
+  it('summarises a rubric item at the mean of its thresholds', () => {
+    // The location summary is the one place a threshold mean is the right
+    // answer: it is what puts both formats in one column of a report.
+    const report = bankHealth(rubrics([0, 2], 1.4));
+    expect(report.difficulty.min).toBeCloseTo(0, 12);
+    expect(report.difficulty.max).toBeCloseTo(2, 12);
+    expect(report.difficulty.mean).toBeCloseTo(1, 12);
+    expect(report.meanDiscrimination).toBeCloseTo(1.4, 12);
   });
 });
 
