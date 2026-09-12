@@ -286,3 +286,65 @@ describe('fit command', () => {
     expect(capture(argv).out).toBe(capture(argv).out);
   });
 });
+
+describe('dif command', () => {
+  const FAST = ['dif', '--items', '12', '--sample', '400', '--biased', '3', '--crossing', '0'];
+
+  it('appears in the usage text', () => {
+    const { out } = capture(['--help']);
+    expect(out).toContain('calibrate dif');
+    expect(out).toContain('--biased');
+  });
+
+  it('prints the planted truth beside what the scan found', () => {
+    const { code, out } = capture(FAST);
+    expect(code).toBe(0);
+    expect(out).toContain('Planted uniform DIF');
+    expect(out).toContain('Large effects against the whole form');
+    expect(out).toContain('Large effects after purification');
+    expect(out).toMatch(/Against the planted truth: \d+ of 3 uniform effects recovered/);
+  });
+
+  it('recovers every planted effect at a workable sample size', () => {
+    const { out } = capture(['dif', '--items', '14', '--sample', '900', '--biased', '4', '--crossing', '0']);
+    expect(out).toMatch(/Against the planted truth: 4 of 4 uniform effects recovered/);
+    expect(out).toContain('0 spurious');
+  });
+
+  it('reports the purification round count and whether it settled', () => {
+    const { out } = capture(FAST);
+    expect(out).toMatch(/Purified in \d+ rounds? \((converged|did not converge)\)/);
+  });
+
+  it('explains the non-uniform item against a run without impact', () => {
+    const { code, out } = capture([
+      'dif', '--items', '12', '--sample', '500', '--biased', '2', '--crossing', '1',
+    ]);
+    expect(code).toBe(0);
+    expect(out).toContain('Planted non-uniform DIF');
+    expect(out).toMatch(/reaches only \d+\.\d\d/);
+    expect(out).toContain('crossing point');
+  });
+
+  it('says nothing about crossing items when none were planted', () => {
+    const { out } = capture(FAST);
+    expect(out).not.toContain('crossing point');
+  });
+
+  it('rejects a form with nothing left to match on', () => {
+    const { code, err } = capture(['dif', '--items', '6', '--biased', '6', '--crossing', '0']);
+    expect(code).toBe(1);
+    expect(err).toContain('leave some items unbiased');
+  });
+
+  it('rejects a form or a sample too small to analyse', () => {
+    expect(capture(['dif', '--items', '3']).code).toBe(1);
+    expect(capture(['dif', '--sample', '10']).err).toContain('at least 50 per group');
+    expect(capture(['dif', '--biased', '-1']).err).toContain('must not be negative');
+  });
+
+  it('is deterministic for a given seed', () => {
+    const argv = [...FAST, '--seed', '5'];
+    expect(capture(argv).out).toBe(capture(argv).out);
+  });
+});
