@@ -390,3 +390,73 @@ export {
   type RecoveryPoint,
   type RecoveryStudy,
 } from './simulation/recovery.js';
+
+export {
+  chiSquareUpperTail,
+  logGamma,
+  lowerGamma,
+  normalTwoSidedTail,
+  normalUpperTail,
+  upperGamma,
+} from './core/gamma.js';
+
+export {
+  informativeStrata,
+  isInformative,
+  matchedSample,
+  mergeThinStrata,
+  stratify,
+  summariseStrata,
+  type DifObservation,
+  type DifStratum,
+  type Group,
+  type MatchedSample,
+  type MatchingOptions,
+  type StratifyOptions,
+  type StratumSummary,
+} from './dif/strata.js';
+
+export {
+  classifyDelta,
+  DELTA_SCALE,
+  LARGE_DELTA,
+  LARGE_PROPORTION,
+  mantelHaenszel,
+  NEGLIGIBLE_DELTA,
+  NEGLIGIBLE_PROPORTION,
+  standardizedDifference,
+  type DifCategory,
+  type Favours,
+  type MantelHaenszelResult,
+  type StandardizedDifferenceResult,
+} from './dif/mantel.js';
+
+export {
+  classifyGraded,
+  generalizedMantel,
+  LARGE_STANDARDIZED,
+  NEGLIGIBLE_STANDARDIZED,
+  standardizedMeanDifference,
+  type GeneralizedMantelResult,
+  type GradedOptions,
+  type StandardizedMeanDifferenceResult,
+} from './dif/graded.js';
+
+export {
+  flaggedAt,
+  purifiedScan,
+  rankByEffect,
+  scanBank,
+  type DifRow,
+  type DifScan,
+  type PurifyOptions,
+  type PurifyResult,
+  type ScanOptions,
+} from './dif/scan.js';
+
+export {
+  simulateDif,
+  type DifShift,
+  type DifSimulation,
+  type DifSimulationOptions,
+} from './simulation/dif.js';

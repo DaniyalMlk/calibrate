@@ -1,4 +1,5 @@
 import { DEMO_OPTIONS, runDemo } from './demo.js';
+import { DIF_OPTIONS, runDif } from './dif.js';
 import { FIT_OPTIONS, runFit } from './fit.js';
 import { LINK_OPTIONS, runLink } from './link.js';
 import { MIXED_OPTIONS, runMixed } from './mixed.js';
@@ -42,6 +43,11 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     summary: 'Calibrate item parameters from responses, then report fit and bank health',
     options: FIT_OPTIONS,
     run: runFit,
+  },
+  dif: {
+    summary: 'Scan a two-group administration for items that behave differently at equal ability',
+    options: DIF_OPTIONS,
+    run: runDif,
   },
 };
 

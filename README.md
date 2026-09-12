@@ -11,7 +11,7 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 11 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+Phases 1 to 12 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
 end to end — `npm run demo` administers one against a synthetic bank and prints
 the transcript — `npm run study` compares selection policies over a simulated
 population, `npm run fit` estimates item parameters from a matrix of responses,
@@ -28,6 +28,11 @@ rather than a right/wrong verdict. Two calibrations of the same anchor can be
 put on a single metric — `npm run link` shows the four linking methods side by
 side.
 
+A bank can also be scanned for items that behave differently for two groups of
+equally able candidates. `npm run dif` runs the Mantel-Haenszel family over a
+simulated two-group administration, purifies the matching criterion and prints
+what it found beside what was actually planted.
+
 ## Install and run
 
 ```bash
@@ -42,6 +47,7 @@ npm run study     # selection policies compared over a simulated population
 npm run recover   # how well each estimator recovers a known ability
 npm run fit       # item parameters calibrated from a matrix of responses
 npm run link      # two calibrations of one anchor put on a single metric
+npm run dif       # a two-group form scanned for differential item functioning
 npm run web       # the browser interface, on http://localhost:5173/web/
 ```
 
@@ -780,6 +786,115 @@ which a mixed pattern on high-guessing items really can produce.
 as a fraction of the peak. Everything else in the result is conditioned on the
 posterior lying inside the grid, and that is the number which says whether it
 does.
+
+### Items that behave differently for different groups
+
+The question a testing programme is asked first, and the one the rest of the
+engine cannot answer: does this item work the same way for two groups of
+candidates who are equally able?
+
+```ts
+import { purifiedScan, rankByEffect, scanBank } from 'calibrate';
+
+const groups = candidates.map((c) => (c.group === 'A' ? 'reference' : 'focal'));
+
+const scan = scanBank(responses, groups);
+rankByEffect(scan)[0];   // the largest effect in the bank
+scan.flagged;            // items classified B or C by the ETS rule
+
+const pure = purifiedScan(responses, groups);
+pure.anchor;             // the items the criterion should be built from
+pure.converged;          // whether the flagged set reached a fixed point
+```
+
+Everything here rests on one idea. Candidates are stratified by a matching
+score — a proxy for ability — and the two groups are compared **only within a
+level of it**. That is what separates the two things a raw comparison of
+proportions runs together:
+
+- **Impact** is a real difference in ability between the groups. It is not bias.
+  A programme that removed every item showing impact would be removing the test.
+- **DIF** is an item whose response function differs between the groups *at
+  equal ability*. Only this is the item's fault.
+
+On simulated data where the focal group is eight tenths of a logit less able and
+no item has been touched, the scan flags nothing. An unmatched comparison would
+flag the entire bank.
+
+Four statistics, and they answer different questions:
+
+- `mantelHaenszel` — the common odds ratio across strata, its continuity-corrected
+  chi-square, and the ETS delta effect size with the A/B/C classification built
+  on it. Fits no model and estimates no ability, which is why it is the
+  operational standard: an item flagged here is flagged by arithmetic on the
+  observed counts.
+- `standardizedDifference` — the average gap in proportion correct, weighted by
+  the focal group's own distribution. Mantel-Haenszel assumes one odds ratio
+  describes every stratum; this assumes nothing about the shape. When they
+  disagree, the item's effect is not constant across the range, and that is the
+  finding.
+- `generalizedMantel` — Mantel's statistic for a rubric-scored item, where there
+  is no pair of cells to take the odds of. On a two-category item it reproduces
+  the uncorrected Mantel-Haenszel chi-square exactly, by a different route.
+- `standardizedMeanDifference` — the same average gap in score points, and in
+  standard deviations of the item score so that rubrics of different lengths
+  can be compared.
+
+### Why the matching criterion has to be purified
+
+The criterion is the total score, and the total score is made of the items. So
+if some items are biased against the focal group, the criterion is biased
+against the focal group — and every **unbiased** item will look slightly biased
+the other way when measured against it. Contamination in the criterion spreads
+to every item's result.
+
+```
+$ npm run dif
+Form: 18 items, 2500 candidates per group
+Impact: the focal group is 0.60 logits less able — a real difference, not bias
+Planted uniform DIF (1.60 logits harder for the focal group): q-002, q-004, q-006, q-008, q-010, q-012
+Planted non-uniform DIF (flattened curve): q-014
+
+Large effects against the whole form: q-002, q-004, q-005, q-006, q-008, q-009, q-010, q-012, q-014
+Of those, q-005, q-009 were never touched.
+
+Purified in 3 rounds (converged), criterion now 11 items:
+Large effects after purification: q-002, q-004, q-006, q-008, q-010, q-012, q-014
+
+Against the planted truth: 6 of 6 uniform effects recovered as large, 1 of 1 non-uniform, 0 spurious.
+```
+
+Two fair items dragged in by a bent criterion, and both gone after three rounds
+of removing what flagged and re-scanning against what was left. The studied item
+stays in its own matching score throughout, flagged or not: taking it out makes
+the criterion and the response independent, which sounds cleaner and introduces
+a worse bias, because every item is then judged against a criterion measuring a
+slightly different construct from the item itself.
+
+Purification is declared converged only when a round flags exactly what the
+previous round flagged. A set that oscillates exhausts its budget and is
+reported unconverged rather than returning whichever round happened to be last —
+flags that depend on where the iteration stopped are not a result.
+
+### What a matched-group method cannot see
+
+An item whose curves **cross** favours one group below the crossing point and
+the other above it. A pooled odds ratio averages those two advantages together,
+so how much survives depends entirely on where the two groups sit relative to
+the crossing:
+
+```
+The non-uniform item (q-014) reached 2.04 delta here, and 1 of 1 was called large.
+Running the same item again with the ability difference removed — no impact,
+nothing else shifted — reaches only 1.47.
+```
+
+Same item, same shift, same sample size. With the groups sitting on top of each
+other the two advantages cancel and the item nearly disappears; with the focal
+group displaced down the scale they are sampled on opposite sides of the
+crossing and much of the effect reads as uniform. A matched-group method cannot
+tell a large crossing effect from a small uniform one, which is the argument for
+a method that models the interaction directly.
 
 ## The web interface
 
