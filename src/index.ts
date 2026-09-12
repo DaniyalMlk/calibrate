@@ -460,3 +460,36 @@ export {
   type DifSimulation,
   type DifSimulationOptions,
 } from './simulation/dif.js';
+
+export {
+  invertMatrix,
+  solveLinear,
+  transposeProduct,
+  weightedCrossProduct,
+  type Matrix,
+} from './core/linear.js';
+
+export { groupSubmatrix } from './dif/strata.js';
+
+export {
+  classifyLogistic,
+  EFFECT_RULES,
+  fitLogistic,
+  logisticDif,
+  nagelkerke,
+  type EffectRule,
+  type IrlsOptions,
+  type LikelihoodRatioTest,
+  type LogisticDifOptions,
+  type LogisticDifResult,
+  type LogisticFit,
+} from './dif/logistic.js';
+
+export {
+  areaScan,
+  integrateArea,
+  rajuArea,
+  rankByArea,
+  type AreaResult,
+  type AreaRow,
+} from './dif/area.js';

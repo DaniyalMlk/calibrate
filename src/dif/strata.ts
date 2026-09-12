@@ -14,7 +14,7 @@
  * and an unstratified comparison of proportions cannot.
  */
 
-import { MISSING, type ResponseMatrix } from '../calibration/matrix.js';
+import { MISSING, ResponseMatrix, type Cell } from '../calibration/matrix.js';
 
 /**
  * Which of the two groups a candidate belongs to.
@@ -343,4 +343,34 @@ export function matchedSample(
     );
   }
   return { observations, dropped, maxMatch: criterion.length };
+}
+
+/**
+ * The rows belonging to one group, as a response matrix of their own.
+ *
+ * The entry point to the parameter-based methods: calibrating an item
+ * separately in each group is what produces the two sets of parameters an area
+ * measure compares. Item identifiers are carried across so the two calibrations
+ * can be matched up afterwards, which is the whole reason not to do this with a
+ * filter at the call site.
+ */
+export function groupSubmatrix(
+  matrix: ResponseMatrix,
+  groups: readonly Group[],
+  which: Group,
+): ResponseMatrix {
+  if (groups.length !== matrix.personCount) {
+    throw new RangeError(
+      `groupSubmatrix: ${groups.length} group labels for ${matrix.personCount} people`,
+    );
+  }
+  const rows: Cell[][] = [];
+  const personIds: string[] = [];
+  for (let person = 0; person < matrix.personCount; person += 1) {
+    if (groups[person] !== which) continue;
+    rows.push([...matrix.row(person)]);
+    personIds.push(matrix.personIds[person] as string);
+  }
+  if (rows.length === 0) throw new RangeError(`groupSubmatrix: no candidates in the ${which} group`);
+  return new ResponseMatrix({ rows, personIds, itemIds: [...matrix.itemIds] });
 }
