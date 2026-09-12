@@ -102,3 +102,16 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Expected score and the test characteristic curve
 - [x] Format mix in the bank coverage view
 - [x] Levels that are modal nowhere, reported in the interface and the CLI
+
+## Phase 12 — Differential item functioning
+
+- [x] The regularized incomplete gamma function and the chi-square and normal tails
+- [x] Stratification by a matching criterion, with thin strata merged
+- [x] Mantel-Haenszel common odds ratio, chi-square and the ETS delta metric
+- [x] The A/B/C classification, including the one-sided test against the boundary
+- [x] Standardized proportion difference as a second effect size
+- [x] Mantel's statistic and the standardized mean difference for rubric items
+- [x] Two-group simulation with impact and bias controlled separately
+- [x] Bank-wide scan, with unanalysable items reported rather than dropped
+- [x] Iterative purification of the matching criterion
+- [x] Command-line entry point
