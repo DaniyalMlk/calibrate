@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MISSING, ResponseMatrix } from '../src/calibration/matrix.js';
+import { MISSING, ResponseMatrix, type Cell } from '../src/calibration/matrix.js';
 import {
   informativeStrata,
   isInformative,
@@ -179,7 +179,7 @@ describe('informativeness', () => {
 
 describe('matchedSample', () => {
   const groups: Group[] = ['reference', 'reference', 'focal', 'focal'];
-  const rows = [
+  const rows: Cell[][] = [
     [1, 1, 1, 0],
     [1, 0, 0, 0],
     [1, 1, 0, 1],

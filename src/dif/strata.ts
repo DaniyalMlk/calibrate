@@ -161,7 +161,9 @@ export function mergeThinStrata(strata: readonly DifStratum[], minimum: number):
   let carry: DifStratum | null = null;
 
   for (const stratum of strata) {
-    const combined = carry === null ? stratum : combine(carry, stratum);
+    // Annotated because the assignment back into `carry` at the foot of the
+    // loop would otherwise make the inference of this binding circular.
+    const combined: DifStratum = carry === null ? stratum : combine(carry, stratum);
     if (combined.total >= minimum) {
       merged.push(combined);
       carry = null;
