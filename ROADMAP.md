@@ -115,3 +115,16 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Bank-wide scan, with unanalysable items reported rather than dropped
 - [x] Iterative purification of the matching criterion
 - [x] Command-line entry point
+
+## Phase 13 — Model-based differential item functioning
+
+- [x] Dense linear solver, matrix inverse and the weighted normal-equation products
+- [x] Logistic regression by iteratively reweighted least squares
+- [x] Nested likelihood-ratio tests for uniform, non-uniform and combined DIF
+- [x] Nagelkerke R-squared and the change in it as an effect size
+- [x] Both published effect-size cut-point sets, with the narrower as default
+- [x] Convergence reported rather than assumed, for separated data
+- [x] Raju's signed and unsigned area measures in closed form
+- [x] The crossing point, and the share of the departure the signed area misses
+- [x] Areas validated against numerical integration of the same curves
+- [x] Per-group calibration and linking wired into the command

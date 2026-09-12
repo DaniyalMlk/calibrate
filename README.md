@@ -11,7 +11,7 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 12 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+Phases 1 to 13 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
 end to end — `npm run demo` administers one against a synthetic bank and prints
 the transcript — `npm run study` compares selection policies over a simulated
 population, `npm run fit` estimates item parameters from a matrix of responses,
@@ -31,7 +31,9 @@ side.
 A bank can also be scanned for items that behave differently for two groups of
 equally able candidates. `npm run dif` runs the Mantel-Haenszel family over a
 simulated two-group administration, purifies the matching criterion and prints
-what it found beside what was actually planted.
+what it found beside what was actually planted — then runs the same data through
+logistic regression and Raju's area measures, which do not pool and can tell a
+uniformly harder item from one whose response curves cross.
 
 ## Install and run
 
@@ -894,7 +896,101 @@ other the two advantages cancel and the item nearly disappears; with the focal
 group displaced down the scale they are sampled on opposite sides of the
 crossing and much of the effect reads as uniform. A matched-group method cannot
 tell a large crossing effect from a small uniform one, which is the argument for
-a method that models the interaction directly.
+a method that models the interaction directly — the next two sections.
+
+### Separating the two kinds of DIF
+
+A pooled odds ratio has no term for an interaction, so it cannot say whether an
+item is uniformly harder for one group or harder for one group only at one end
+of the scale. Regression can, because the interaction is a column in the model.
+
+```ts
+import { logisticDif, matchedSample } from 'calibrate';
+
+const { observations } = matchedSample(responses, groups, item, { anchor: pure.anchor });
+const result = logisticDif(observations);
+
+result.uniform;       // is the item harder for one group at every ability?
+result.nonUniform;    // does the gap change across the range?
+result.deltaRSquared; // effect size, which does not grow with the sample
+result.converged;     // separation is common; a diverging fit is not a finding
+```
+
+Four nested models are fitted by iteratively reweighted least squares — an
+intercept, the matching score, the score plus group, and the score plus group
+plus their product — and the differences between successive log-likelihoods are
+the tests. The order matters: the interaction is tested **after** the uniform
+component, or a plain difficulty shift would be charged to the interaction
+whenever the groups' score distributions differ, which they always do.
+
+```
+item        uniform          p  crossing          p     dR2  class planted
+q-006         621.0   4.5e-137       1.4     0.2343  0.1099  C     yes
+q-004         598.1   4.4e-132       0.3     0.5973  0.1070  C     yes
+q-012         347.7    1.3e-77       2.4     0.1185  0.0838  C     yes
+q-014         163.9    1.6e-37      30.1     4.2e-8  0.0469  B     yes
+q-009           2.1     0.1449       3.6     0.0589  0.0011  A
+```
+
+The six uniformly shifted items carry group terms in the hundreds and
+interactions under 2.5 — nothing, correctly, because they are harder for the
+focal group by the same amount at every ability. The crossing item `q-014` is
+the only one with an interaction, at 30.1. The Mantel-Haenszel scan called that
+same item moderate.
+
+**On the effect-size boundaries.** Two cut-point sets are published and they
+disagree by a factor of nearly four. The narrower pair is the default here, on
+evidence rather than taste: a pseudo-R-squared is not a proportion of variance
+and does not reach the values the wider pair's intuition expects. On an item made
+a full logit harder for the focal group, with a combined p-value near `1e-34`,
+the change in Nagelkerke R-squared is 0.076 — large under the narrower pair and
+*negligible* under the wider one. Both are exported as `EFFECT_RULES`; a
+classifier that calls that item negligible is not being conservative.
+
+### Measuring the gap between two calibrations directly
+
+Every method above needs a matching score, and a matching score can be
+contaminated. Raju's area measures need none: calibrate the item separately in
+each group, put the two calibrations on one metric, and measure the area between
+the response functions.
+
+```ts
+import { areaScan, rajuArea, rankByArea } from 'calibrate';
+
+const area = rajuArea(referenceCalibration, focalCalibration);
+area.signed;           // the uniform component; cancels where the curves cross
+area.unsigned;         // the total departure; cannot cancel
+area.crossing;         // the ability at which the item changes sides
+area.nonUniformShare;  // 0 when the curves are parallel, 1 on a clean crossing
+```
+
+The pair is the point. Both have exact closed forms for the models without a
+lower asymptote, so the implementation is checked against numerical integration
+of the very curves it claims to describe, to nine decimal places.
+
+```
+item        signed  unsigned  crossing   share  planted
+q-014       -0.589     4.239      0.94    0.86  yes
+q-012       -2.037     2.039     -2.96    0.00  yes
+q-010       -1.715     1.715    -13.51    0.00  yes
+q-004       -1.499     1.499    -46.31    0.00  yes
+q-016        0.439     0.584      0.27    0.25
+```
+
+The six uniformly shifted items have their two areas equal to three decimal
+places and a non-uniform share of zero: parallel curves, nothing crossing. The
+crossing item `q-014` ranks first on unsigned area at 4.24 while its signed area
+is −0.59, and 86 per cent of its departure cancels the moment the sign is kept.
+Ranking on the signed area alone would have buried it in the middle of the bank.
+
+The crossing at ability 0.94 is the number none of the pooled statistics can
+produce, and the one an item reviewer actually needs: it says *where* the item
+changes sides, which decides whether the unfairness falls anywhere near the
+candidates who will sit the form.
+
+Unequal asymptotes are refused rather than approximated. Two curves that do not
+meet at the tails stay a constant distance apart forever, so the area between
+them is infinite, and no finite number describes it.
 
 ## The web interface
 
