@@ -1,4 +1,11 @@
 import { flaggedAt, purifiedScan, rankByEffect, scanBank, type DifScan } from '../dif/scan.js';
+import type { LogisticDifResult } from '../dif/logistic.js';
+import {
+  computeAreas,
+  writeAreaSection,
+  writeLogisticSection,
+  type AreaSection,
+} from './dif-model.js';
 import { makeItem, twoPL, type Item } from '../models/item.js';
 import { simulateDif, type DifShift } from '../simulation/dif.js';
 import { pad, padStart } from './format.js';
@@ -143,6 +150,102 @@ export function runDif(argv: readonly string[]): void {
   );
 
   if (crossingItems.length > 0) reportCrossing(bank, crossingItems, pure.scan, options);
+
+  process.stdout.write(
+    '\n\nSame data, two methods that do not pool.\n\n' +
+      'Logistic regression on the purified criterion. The uniform column is the group\n' +
+      'term and the crossing column is its interaction with the matching score — the\n' +
+      'term a pooled odds ratio has no way to express:\n\n',
+  );
+  const regression = writeLogisticSection(
+    simulation.matrix,
+    simulation.groups,
+    bank,
+    pure.anchor,
+    planted,
+  );
+  reportRegression(uniformItems, crossingItems, regression);
+
+  const areas = computeAreas(simulation.matrix, simulation.groups, pure.anchor);
+  if (areas === null) {
+    process.stdout.write(
+      '\nNot enough clean items survived purification to link the two calibrations, so\n' +
+        'the area measures were skipped.\n',
+    );
+    return;
+  }
+
+  process.stdout.write(
+    `\nArea measures. The bank is calibrated separately in each group and the focal\n` +
+      `calibration linked onto the reference metric through the ${areas.anchorSize} purified items\n` +
+      `(A = ${areas.slope.toFixed(3)}, B = ${areas.intercept.toFixed(3)})` +
+      `${areas.converged ? '' : ' — note that something in that chain did not converge'}.\n` +
+      'No matching score is involved at any point, so nothing here can be contaminated\n' +
+      'by the biased items:\n\n',
+  );
+  writeAreaSection(
+    areas,
+    new Set(shifts.map((shift) => bank[shift.item]?.id ?? '').filter((id) => id.length > 0)),
+  );
+  reportAreas(bank, crossingItems, areas);
+}
+
+/** What the two non-pooling methods made of each kind of planted effect. */
+function reportRegression(
+  uniformItems: readonly number[],
+  crossingItems: readonly number[],
+  regression: ReadonlyMap<number, LogisticDifResult>,
+): void {
+  const worstUniform = extreme(uniformItems, regression, (r) => r.nonUniform.chiSquare);
+  const worstCrossing = extreme(crossingItems, regression, (r) => r.nonUniform.chiSquare);
+  if (uniformItems.length > 0) {
+    process.stdout.write(
+      `\nOn the uniformly shifted items the interaction reaches at most ` +
+        `${worstUniform.toFixed(1)}, which is\nwhat it should do: those items are harder for the ` +
+        'focal group by the same amount\nat every ability, and there is no interaction there to find.\n',
+    );
+  }
+  if (crossingItems.length > 0) {
+    process.stdout.write(
+      `On the crossing item${crossingItems.length === 1 ? '' : 's'} it reaches ` +
+        `${worstCrossing.toFixed(1)}. The pooled statistic had no term for that at all.\n`,
+    );
+  }
+}
+
+function extreme(
+  items: readonly number[],
+  regression: ReadonlyMap<number, LogisticDifResult>,
+  read: (result: LogisticDifResult) => number,
+): number {
+  let best = 0;
+  for (const item of items) {
+    const result = regression.get(item);
+    if (result !== undefined) best = Math.max(best, read(result));
+  }
+  return best;
+}
+
+function reportAreas(
+  bank: readonly Item[],
+  crossingItems: readonly number[],
+  areas: AreaSection,
+): void {
+  if (crossingItems.length === 0) return;
+  const ids = new Set(crossingItems.map((item) => bank[item]?.id));
+  const row = areas.rows.find((candidate) => ids.has(candidate.itemId));
+  if (row === undefined) return;
+
+  const rank = areas.rows.indexOf(row) + 1;
+  process.stdout.write(
+    `\nThe crossing item ${row.itemId} ranks ${rank} of ${areas.rows.length} by unsigned area ` +
+      `(${row.area.unsigned.toFixed(2)}), and its\nsigned area is only ` +
+      `${row.area.signed.toFixed(2)} — ${(100 * row.area.nonUniformShare).toFixed(0)} per cent of ` +
+      'the departure cancels when the sign is kept.\n' +
+      `The curves meet at ability ${(row.area.crossing ?? 0).toFixed(2)}, which is where the item ` +
+      'stops favouring one\ngroup and starts favouring the other. That is the number none of the ' +
+      'pooled\nstatistics can produce, and it is the one an item reviewer actually needs.\n',
+  );
 }
 
 /**

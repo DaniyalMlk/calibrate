@@ -348,3 +348,46 @@ describe('dif command', () => {
     expect(capture(argv).out).toBe(capture(argv).out);
   });
 });
+
+describe('dif command, the model-based half', () => {
+  const FAST = ['dif', '--items', '12', '--sample', '700', '--biased', '2', '--crossing', '1'];
+
+  it('reports the regression beside the pooled scan', () => {
+    const { code, out } = capture(FAST);
+    expect(code).toBe(0);
+    expect(out).toContain('Logistic regression on the purified criterion');
+    expect(out).toContain('crossing');
+    expect(out).toMatch(/On the crossing item it reaches \d+\.\d/);
+  });
+
+  it('finds the crossing through the interaction, not the uniform term', () => {
+    const { out } = capture(FAST);
+    const uniform = out.match(/interaction reaches at most (\d+\.\d)/);
+    const crossing = out.match(/On the crossing item it reaches (\d+\.\d)/);
+    expect(uniform).not.toBeNull();
+    expect(crossing).not.toBeNull();
+    // The interaction is nearly silent on a plain difficulty shift and loud on
+    // a crossing item — which is the entire claim of the method.
+    expect(Number(crossing?.[1])).toBeGreaterThan(Number(uniform?.[1]));
+  });
+
+  it('calibrates each group and links them for the area measures', () => {
+    const { out } = capture(FAST);
+    expect(out).toContain('Area measures');
+    expect(out).toMatch(/A = \d+\.\d{3}, B = -?\d+\.\d{3}/);
+    expect(out).toContain('unsigned');
+    expect(out).toMatch(/ranks \d+ of \d+ by unsigned area/);
+  });
+
+  it('shows the crossing item cancelling under the signed area', () => {
+    const { out } = capture(FAST);
+    const share = out.match(/(\d+) per cent of the departure cancels/);
+    expect(share).not.toBeNull();
+    expect(Number(share?.[1])).toBeGreaterThan(40);
+  });
+
+  it('is deterministic for a given seed', () => {
+    const argv = [...FAST, '--seed', '31'];
+    expect(capture(argv).out).toBe(capture(argv).out);
+  });
+});

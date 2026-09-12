@@ -37,7 +37,7 @@ export interface LogisticFit {
   readonly converged: boolean;
 }
 
-export interface FitOptions {
+export interface IrlsOptions {
   /** Newton steps before giving up. Default 50. */
   readonly maxIterations?: number;
   /** Convergence tolerance on the log-likelihood. Default 1e-10. */
@@ -62,7 +62,7 @@ export interface FitOptions {
 export function fitLogistic(
   design: readonly (readonly number[])[],
   outcomes: readonly number[],
-  options: FitOptions = {},
+  options: IrlsOptions = {},
 ): LogisticFit {
   const rows = design.length;
   if (rows === 0) throw new RangeError('fitLogistic: no observations');
@@ -214,7 +214,7 @@ export const EFFECT_RULES = {
   zumboThomas: { negligible: 0.13, large: 0.26 },
 } as const satisfies Readonly<Record<string, EffectRule>>;
 
-export interface LogisticDifOptions extends FitOptions {
+export interface LogisticDifOptions extends IrlsOptions {
   /** Effect-size boundaries. Defaults to the Jodoin-Gierl pair. */
   readonly rule?: EffectRule;
   /**

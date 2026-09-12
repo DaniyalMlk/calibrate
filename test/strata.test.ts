@@ -3,6 +3,7 @@ import { MISSING, ResponseMatrix, type Cell } from '../src/calibration/matrix.js
 import {
   informativeStrata,
   isInformative,
+  groupSubmatrix,
   matchedSample,
   mergeThinStrata,
   stratify,
@@ -267,5 +268,44 @@ describe('matchedSample', () => {
       ],
     });
     expect(() => matchedSample(matrix, groups, 0)).toThrow(/every candidate was dropped/);
+  });
+});
+
+describe('groupSubmatrix', () => {
+  const groups: Group[] = ['reference', 'focal', 'reference', 'focal', 'focal'];
+  const rows: Cell[][] = [
+    [1, 1, 0],
+    [0, 1, 1],
+    [1, 0, 1],
+    [0, 0, 0],
+    [1, 1, 1],
+  ];
+
+  it('keeps only the rows of the named group, with their identifiers', () => {
+    const matrix = new ResponseMatrix({ rows, personIds: ['a', 'b', 'c', 'd', 'e'] });
+    const focal = groupSubmatrix(matrix, groups, 'focal');
+    expect(focal.personCount).toBe(3);
+    expect(focal.personIds).toEqual(['b', 'd', 'e']);
+    expect(focal.toArray()).toEqual([rows[1], rows[3], rows[4]]);
+  });
+
+  it('carries the item identifiers across so two calibrations can be matched', () => {
+    const matrix = new ResponseMatrix({ rows, itemIds: ['q1', 'q2', 'q3'] });
+    expect(groupSubmatrix(matrix, groups, 'reference').itemIds).toEqual(['q1', 'q2', 'q3']);
+  });
+
+  it('partitions the sample exactly between the two groups', () => {
+    const matrix = new ResponseMatrix({ rows });
+    const reference = groupSubmatrix(matrix, groups, 'reference');
+    const focal = groupSubmatrix(matrix, groups, 'focal');
+    expect(reference.personCount + focal.personCount).toBe(matrix.personCount);
+  });
+
+  it('rejects a mismatched group vector or an empty group', () => {
+    const matrix = new ResponseMatrix({ rows });
+    expect(() => groupSubmatrix(matrix, ['focal'], 'focal')).toThrow(/1 group labels for 5 people/);
+    expect(() =>
+      groupSubmatrix(matrix, new Array<Group>(5).fill('reference'), 'focal'),
+    ).toThrow(/no candidates in the focal group/);
   });
 });
