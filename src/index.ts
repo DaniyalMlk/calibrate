@@ -189,11 +189,42 @@ export {
 } from './calibration/matrix.js';
 
 export {
+  screenExtremeItems,
   screenExtremes,
   type Exclusion,
   type ExclusionReason,
   type ScreenResult,
 } from './calibration/screen.js';
+
+export {
+  expectationStep,
+  marginalLogLikelihood,
+  patternLogLikelihood,
+  pointProbability,
+  posteriorOverNodes,
+  type ExpectedCounts,
+  type ItemPoint,
+} from './calibration/expected.js';
+
+export {
+  countDerivatives,
+  countStandardErrors,
+  maximiseItem,
+  type CountDerivatives,
+  type MaximiseOptions,
+  type MaximiseResult,
+} from './calibration/maximise.js';
+
+export {
+  crossProductErrors,
+  marginalCalibrate,
+  toMarginalItems,
+  type ErrorMethod,
+  type LatentDistribution,
+  type MarginalItem,
+  type MarginalOptions,
+  type MarginalResult,
+} from './calibration/mml.js';
 
 export {
   calibrate,
