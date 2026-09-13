@@ -11,7 +11,7 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 14 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+Phases 1 to 15 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
 end to end — `npm run demo` administers one against a synthetic bank and prints
 the transcript — `npm run study` compares selection policies over a simulated
 population, `npm run fit` estimates item parameters from a matrix of responses,
@@ -31,7 +31,10 @@ side.
 Item parameters can be estimated two ways. Joint estimation is fast and
 intuitive, and has a structural bias that no amount of data removes; marginal
 maximum likelihood integrates the ability out instead and does not.
-`npm run mml` runs both on the same responses and shows where they part company.
+`npm run mml` runs both on the same responses and shows where they part company,
+then reports what the calibrated form does: the conversion from each total score
+to an ability and its standard error, the totals the population will produce, and
+the share of the spread in ability the form recovers.
 
 A bank can also be scanned for items that behave differently for two groups of
 equally able candidates. `npm run dif` runs the Mantel-Haenszel family over a
@@ -53,7 +56,7 @@ npm run mixed     # an adaptive session over a bank mixing both item formats
 npm run study     # selection policies compared over a simulated population
 npm run recover   # how well each estimator recovers a known ability
 npm run fit       # item parameters calibrated from a matrix of responses
-npm run mml       # the same, by marginal maximum likelihood, compared against joint
+npm run mml       # the same, by marginal maximum likelihood, then the form's score report
 npm run link      # two calibrations of one anchor put on a single metric
 npm run dif       # a two-group form scanned for differential item functioning
 npm run web       # the browser interface, on http://localhost:5173/web/
@@ -726,6 +729,84 @@ population estimated the likelihood can give back a fraction of that
 interpolation error on a cycle. With the population held fixed it is exactly
 monotone, and the tests distinguish the two cases rather than loosening both.
 
+### Reporting a fixed form
+
+A calibration says what the items are. Scoring says what the form does with
+them, and for a fixed form that means reporting from the total score rather than
+from the response pattern — which is what a programme publishes, and what a
+candidate can be told and can appeal.
+
+`npm run mml` ends with the conversion table for the form it just calibrated,
+against the population it just fitted:
+
+```
+The form as a whole, on the fitted population:
+  marginal reliability 0.6525 (average standard error 0.589 logits)
+
+  score      theta      se    share
+  -------------------------------
+  0         -1.823   0.680     1.6%
+  1         -1.385   0.645     5.4%
+  2         -0.987   0.618     9.9%
+  ...
+  6          0.389   0.570    13.5%
+  ...
+  11         2.106   0.622     0.6%
+  12         2.509   0.648     0.1%
+```
+
+```ts
+import { conversionTable, marginalReliability, marginalScoreDistribution } from 'calibrate';
+
+conversionTable(items, population);        // ability and error for every total
+marginalScoreDistribution(items, population); // the totals a cohort will produce
+marginalReliability(items, population);    // how much of the spread the form sees
+```
+
+**The distribution of totals comes from a recursion, not an enumeration.** The
+obvious way to work out how likely each total is at a given ability is to
+enumerate response patterns and add up the ones that sum to it. That is `2^L`
+patterns on a form of `L` binary items — a few thousand at ten, a hundred
+million at twenty-seven — and rubric items multiply rather than double. The
+recursion adds one item at a time instead: a total of `s` after `j + 1` items can
+only have come from a total of `s - c` before it and a score of `c` on the new
+item, so each item costs one pass over an array no longer than the maximum
+score. It works because responses are independent given ability, which is the
+local independence assumption the whole model rests on, and it is exact rather
+than approximate — the test suite checks it against full enumeration on forms
+short enough to enumerate, and against the two closed forms its moments have to
+match: the mean is the test characteristic curve, and the variance is the sum of
+the per-item score variances.
+
+**Under the Rasch model the conversion table loses nothing.** The total score is
+a sufficient statistic for ability there, so two candidates with the same total
+have proportional likelihood functions and therefore identical posteriors:
+reading ability off the table is an identity, not an approximation. The suite
+asserts it as one, over all 256 patterns of an eight-item form, to nine decimal
+places. Under the 2PL it is a genuine summary — a candidate who passed the
+sharply discriminating items knows more than one who passed the flat ones, and
+the total cannot tell them apart. On a form with discriminations from 0.5 to
+2.15 the worst pattern sits more than 0.15 logits from its own row. Whether that
+matters is a policy question; the point is to be able to see the size of it
+rather than assume it away.
+
+**Reliability is marginal, not classical.** Classical reliability is one number
+for a whole test and assumes every candidate's error variance is the same. Under
+item response theory it is not — a form measures precisely where its items sit
+and poorly at the ends — so the standard error is a function of ability, as the
+`se` column above shows. Marginal reliability averages the squared standard error
+over the population instead of pretending it is constant, and reports
+`1 - E[SE^2] / Var(theta)`. It means what classical reliability is usually taken
+to mean, without the assumption that does not hold. The suite checks it against
+the squared correlation between reported and generating ability on a simulated
+cohort of six thousand.
+
+Scoring works against whatever population it is given, which is why it lives
+apart from the estimator in `bayes.ts`. That one takes a normal prior and builds
+its own rule from it, which is right for an adaptive session where the prior is a
+modelling choice made in advance. After a marginal calibration the population is
+not a choice but an estimate, and it need not be normal at all.
+
 ### Finding items that do not fit
 
 A calibrated parameter is not the same as a working item. Infit and outfit mean
@@ -1383,6 +1464,14 @@ that are too narrow. The cross-product form works on the marginal likelihood
 itself and does not, so it is the default; the curvature form stays available
 because on a small sample the outer product of a few dozen vectors is the noisier
 estimate of the two.
+
+**Scoring takes a population, not a prior.** The Bayesian estimators take a
+normal prior and build their own quadrature rule from its mean and standard
+deviation, which is the right interface for an adaptive session: there the prior
+is a modelling choice made before anyone answers anything. Scoring a calibrated
+form is the other case — the population is an estimate that came out of the
+calibration, and it need not be normal — so it takes the rule directly and uses
+it as given rather than re-deriving one from two moments it may not have.
 
 **Tests check against closed forms, not against previous output.** `P(b) = 0.5`
 for the 2PL, `(1 + c) / 2` for the 3PL, an information peak of `a^2 / 4` at
