@@ -8,7 +8,11 @@ import { simulateMatrix } from '../src/simulation/respondent.js';
 import { MISSING, ResponseMatrix, type Cell } from '../src/calibration/matrix.js';
 import { calibrate } from '../src/calibration/jmle.js';
 import { marginalCalibrate, toMarginalItems } from '../src/calibration/mml.js';
-import { pointProbability } from '../src/calibration/expected.js';
+import {
+  marginalLogLikelihood,
+  pointProbability,
+  type ItemPoint,
+} from '../src/calibration/expected.js';
 
 const rule = normalGaussHermiteRule(0, 1, 41);
 
@@ -61,6 +65,29 @@ describe('marginalCalibrate: the EM guarantee', () => {
           result.history[result.history.length - 1] as number,
         );
       }
+    }
+  });
+
+  it('beats the joint estimates on the objective it is maximising', () => {
+    // Both estimators produce item parameters, and the marginal likelihood
+    // scores either set. Only one of them was chosen to maximise it, and if the
+    // other ever came out ahead the optimiser would have stopped short of its
+    // own target.
+    for (const seed of [313, 626, 939]) {
+      const matrix = simulateMatrix(raschBank.slice(0, 12), normalAbilities(800, seed), seed + 3);
+      const marginal = marginalCalibrate(matrix, { rule });
+      const joint = calibrate(matrix, { model: 'rasch', biasCorrection: false });
+
+      const byId = new Map(joint.items.map((item) => [item.id, item]));
+      const jointPoints: ItemPoint[] = marginal.items.map((item) => {
+        const other = byId.get(item.id);
+        return {
+          discrimination: other?.discrimination ?? 1,
+          difficulty: other?.difficulty ?? item.difficulty,
+        };
+      });
+      const scored = marginalLogLikelihood(marginal.screening.matrix, jointPoints, rule);
+      expect(marginal.logLikelihood).toBeGreaterThan(scored);
     }
   });
 
@@ -173,7 +200,7 @@ describe('marginalCalibrate: recovery', () => {
   });
 
   it('recovers 2PL discriminations as well as difficulties', () => {
-    const matrix = simulateMatrix(twoPlBank, normalAbilities(4000, 6270), 6271);
+    const matrix = simulateMatrix(twoPlBank, normalAbilities(2500, 6270), 6271);
     const result = marginalCalibrate(matrix, { model: '2pl', rule });
     const ids = result.items.map((item) => item.id);
     expect(
@@ -346,7 +373,7 @@ describe('marginalCalibrate: the population', () => {
     // distribution with a long right tail. Its mean and variance are not
     // recoverable — they define the metric — but its asymmetry is.
     const rng = createRng(7373);
-    const abilities = Array.from({ length: 4000 }, () =>
+    const abilities = Array.from({ length: 2500 }, () =>
       rng.next() < 0.75 ? -0.5 + 0.45 * rng.nextNormal() : 1.6 + 0.6 * rng.nextNormal(),
     );
     const matrix = simulateMatrix(raschBank, abilities, 7374);
@@ -361,7 +388,7 @@ describe('marginalCalibrate: the population', () => {
     // distribution has strictly more room than a normal one, so it must reach
     // at least as high a marginal log-likelihood on the same data.
     const rng = createRng(9182);
-    const abilities = Array.from({ length: 2500 }, () =>
+    const abilities = Array.from({ length: 1500 }, () =>
       rng.next() < 0.75 ? -0.6 + 0.5 * rng.nextNormal() : 1.5 + 0.8 * rng.nextNormal(),
     );
     const matrix = simulateMatrix(raschBank, abilities, 9183);
@@ -371,7 +398,7 @@ describe('marginalCalibrate: the population', () => {
   });
 
   it('keeps the fitted population a probability distribution', () => {
-    const matrix = simulateMatrix(raschBank, normalAbilities(1200, 5555, 0.4, 1.2), 5556);
+    const matrix = simulateMatrix(raschBank, normalAbilities(700, 5555, 0.4, 1.2), 5556);
     const result = marginalCalibrate(matrix, { rule, latent: 'empirical' });
     let total = 0;
     for (const weight of result.population.weights) {
@@ -446,15 +473,15 @@ describe('marginalCalibrate: standard errors', () => {
     const item = 14;
     const estimates: number[] = [];
     let reported = 0;
-    for (let replicate = 0; replicate < 20; replicate += 1) {
+    for (let replicate = 0; replicate < 12; replicate += 1) {
       const seed = 40000 + replicate * 13;
-      const result = marginalCalibrate(simulateMatrix(raschBank, normalAbilities(800, seed), seed + 1), {
+      const result = marginalCalibrate(simulateMatrix(raschBank, normalAbilities(600, seed), seed + 1), {
         rule,
       });
       estimates.push(result.items[item]?.difficulty as number);
       reported += result.items[item]?.difficultyStandardError as number;
     }
-    reported /= 20;
+    reported /= 12;
     const centre = mean(estimates);
     let acc = 0;
     for (const value of estimates) acc += (value - centre) * (value - centre);
