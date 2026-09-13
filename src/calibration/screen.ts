@@ -88,6 +88,59 @@ export function screenExtremes(matrix: ResponseMatrix): ScreenResult {
   }
 }
 
+/**
+ * Remove only the columns that carry no information, leaving every respondent in.
+ *
+ * What marginal estimation needs, and the difference is not a detail. Joint
+ * estimation has to drop perfect and zero scorers because it estimates an
+ * ability for each of them and there is no finite estimate to be had. Marginal
+ * estimation never estimates their ability at all: it integrates over the
+ * population, so a perfect scorer contributes a posterior piled up at the top of
+ * the scale but perfectly finite, carrying real information about how hard the
+ * items are.
+ *
+ * Discarding them anyway would not merely waste data, it would bias the result.
+ * The people removed are exactly the ablest and the least able, so what is left
+ * is a truncated population, and item parameters estimated against a truncated
+ * population are estimated against the wrong distribution. The items still have
+ * to go — an item everybody passed pins down no difficulty at any sample size —
+ * and because item extremity is judged over all respondents at once, and no
+ * respondent is ever removed here, one pass is enough.
+ */
+export function screenExtremeItems(matrix: ResponseMatrix): ScreenResult {
+  const excludedItems: Exclusion[] = [];
+  const kept: number[] = [];
+
+  for (let column = 0; column < matrix.itemCount; column += 1) {
+    const { correct, answered } = tally(matrix.column(column));
+    const reason = extremeReason(correct, answered, 'item');
+    if (reason === null) kept.push(column);
+    else excludedItems.push({ id: matrix.itemIds[column] as string, reason, pass: 1 });
+  }
+
+  if (kept.length === 0) {
+    throw new RangeError(
+      'screenExtremeItems: every item was answered the same way by everybody; ' +
+        'the data carry no information about any item parameter',
+    );
+  }
+
+  const rows = matrix.toArray();
+  return {
+    matrix:
+      kept.length === matrix.itemCount
+        ? matrix
+        : new ResponseMatrix({
+            rows: rows.map((row) => kept.map((column) => row[column] as Cell)),
+            personIds: matrix.personIds,
+            itemIds: kept.map((column) => matrix.itemIds[column] as string),
+          }),
+    excludedPersons: [],
+    excludedItems,
+    passes: 1,
+  };
+}
+
 function tally(cells: readonly Cell[]): { correct: number; answered: number } {
   let correct = 0;
   let answered = 0;
