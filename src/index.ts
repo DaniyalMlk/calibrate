@@ -524,3 +524,20 @@ export {
   type AreaResult,
   type AreaRow,
 } from './dif/area.js';
+
+export {
+  marginalScoreDistribution,
+  scoreDistribution,
+  scoreLikelihoods,
+} from './scoring/summed.js';
+
+export {
+  conversionTable,
+  conversionText,
+  marginalReliability,
+  scoreFromTotal,
+  scorePattern,
+  type Reliability,
+  type Score,
+  type ScoreRow,
+} from './scoring/score.js';
