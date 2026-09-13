@@ -11,6 +11,9 @@ import {
   type MarginalResult,
 } from '../calibration/mml.js';
 import type { Item } from '../models/item.js';
+import { toMarginalItems } from '../calibration/mml.js';
+import { marginalScoreDistribution } from '../scoring/summed.js';
+import { conversionTable, marginalReliability } from '../scoring/score.js';
 import { syntheticBank } from '../simulation/bank.js';
 import { drawPopulation, normalPopulation } from '../simulation/population.js';
 import { simulateMatrix } from '../simulation/respondent.js';
@@ -49,6 +52,11 @@ export const MARGINAL_OPTIONS = {
   },
   bank: { kind: 'integer', fallback: 20, describe: 'Simulated bank size, when simulating' },
   seed: { kind: 'integer', fallback: 20260101, describe: 'Seed for the simulation' },
+  score: {
+    kind: 'integer',
+    fallback: 1,
+    describe: 'Report the score conversion table and reliability (1 = yes)',
+  },
 } as const satisfies OptionSpecs;
 
 interface Source {
@@ -147,6 +155,52 @@ function describePopulation(result: MarginalResult): string {
     `Fitted population: skewness ${skew.toFixed(3)}, ` +
     `excess kurtosis ${kurtosis.toFixed(3)} — ${shape}\n`
   );
+}
+
+
+/**
+ * What the calibrated form does, as opposed to what its items are.
+ *
+ * Reported from the fitted items against the fitted population, so it answers
+ * the question a programme actually asks of a new form: if this cohort sits it,
+ * what totals come out, what ability does each total convert to, and how much of
+ * the spread in ability does the form recover.
+ */
+function reportScoring(result: MarginalResult): string {
+  const items = toMarginalItems(result);
+  const population = result.population;
+  const rows = conversionTable(items, population);
+  const distribution = marginalScoreDistribution(items, population);
+  const reliability = marginalReliability(items, population);
+
+  let out =
+    `\nThe form as a whole, on the fitted population:\n` +
+    `  marginal reliability ${reliability.marginal.toFixed(4)} ` +
+    `(average standard error ${reliability.meanStandardError.toFixed(3)} logits)\n\n` +
+    `  ${pad('score', 7)}${padStart('theta', 9)}${padStart('se', 8)}${padStart('share', 9)}\n` +
+    `  ${'-'.repeat(31)}\n`;
+
+  for (const row of rows) {
+    out +=
+      `  ${pad(String(row.score), 7)}` +
+      `${padStart(row.ability.toFixed(3), 9)}` +
+      `${padStart(row.standardError.toFixed(3), 8)}` +
+      `${padStart(`${(distribution[row.score] as number * 100).toFixed(1)}%`, 9)}\n`;
+  }
+
+  if (result.model === 'rasch') {
+    out +=
+      `\n  Under the Rasch model the total score is sufficient for ability, so this\n` +
+      `  table loses nothing: two candidates with the same total have the same\n` +
+      `  posterior whichever items they answered.\n`;
+  } else {
+    out +=
+      `\n  Under the 2PL the total score is not sufficient — a candidate who passed\n` +
+      `  the sharper items knows more than one who passed the flatter ones — so\n` +
+      `  reporting from the total gives something up in exchange for being\n` +
+      `  explicable.\n`;
+  }
+  return out;
 }
 
 /**
@@ -290,4 +344,6 @@ export function runMarginal(argv: readonly string[]): void {
       `  joint estimates    ${jointMarginal.toFixed(3)}` +
       ` (${(marginal.logLikelihood - jointMarginal).toFixed(3)} worse)\n`,
   );
+
+  if (options.score === 1) process.stdout.write(reportScoring(marginal));
 }

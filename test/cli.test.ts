@@ -462,3 +462,52 @@ describe('cli mml', () => {
     expect(capture(argv).out).toBe(capture(argv).out);
   });
 });
+
+describe('cli mml, the scoring report', () => {
+  const FAST = ['mml', '--respondents', '500', '--bank', '8', '--points', '25'];
+
+  it('reports a reliability in the unit interval', () => {
+    const { out } = capture(FAST);
+    const match = out.match(/marginal reliability (\d\.\d{4})/);
+    expect(match).not.toBeNull();
+    const reliability = Number(match?.[1]);
+    expect(reliability).toBeGreaterThan(0);
+    expect(reliability).toBeLessThan(1);
+  });
+
+  it('prints one conversion row per attainable total', () => {
+    const { out } = capture(FAST);
+    const table = out.slice(out.indexOf('The form as a whole'));
+    const rows = table.match(/^ {2}\d+\s+-?\d+\.\d{3}\s+\d+\.\d{3}\s+\d+\.\d%$/gm);
+    // Eight binary items score 0 through 8.
+    expect(rows).toHaveLength(9);
+  });
+
+  it('has a conversion that rises with the total and shares that sum to 100', () => {
+    const { out } = capture(FAST);
+    const rows = [
+      ...out.matchAll(/^ {2}(\d+)\s+(-?\d+\.\d{3})\s+(\d+\.\d{3})\s+(\d+\.\d)%$/gm),
+    ];
+    expect(rows.length).toBeGreaterThan(2);
+    let share = 0;
+    for (const [index, row] of rows.entries()) {
+      share += Number(row[4]);
+      if (index > 0) {
+        expect(Number(row[2])).toBeGreaterThan(Number(rows[index - 1]?.[2]));
+      }
+    }
+    expect(share).toBeGreaterThan(99);
+    expect(share).toBeLessThan(101);
+  });
+
+  it('says the total score is sufficient under Rasch and not under the 2PL', () => {
+    expect(capture(FAST).out).toContain('sufficient for ability');
+    expect(capture([...FAST, '--model', '2pl']).out).toContain('is not sufficient');
+  });
+
+  it('can be turned off', () => {
+    const { out } = capture([...FAST, '--score', '0']);
+    expect(out).not.toContain('The form as a whole');
+    expect(out).toContain('Marginal log-likelihood of each solution');
+  });
+});
