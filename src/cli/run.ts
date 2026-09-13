@@ -2,6 +2,7 @@ import { DEMO_OPTIONS, runDemo } from './demo.js';
 import { DIF_OPTIONS, runDif } from './dif.js';
 import { FIT_OPTIONS, runFit } from './fit.js';
 import { LINK_OPTIONS, runLink } from './link.js';
+import { MARGINAL_OPTIONS, runMarginal } from './marginal.js';
 import { MIXED_OPTIONS, runMixed } from './mixed.js';
 import { describeOptions, type OptionSpecs } from './options.js';
 import { RECOVER_OPTIONS, runRecover } from './recover.js';
@@ -43,6 +44,12 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     summary: 'Calibrate item parameters from responses, then report fit and bank health',
     options: FIT_OPTIONS,
     run: runFit,
+  },
+  mml: {
+    summary:
+      'Calibrate items by marginal maximum likelihood, and compare against joint estimation',
+    options: MARGINAL_OPTIONS,
+    run: runMarginal,
   },
   dif: {
     summary: 'Scan a two-group administration for items that behave differently at equal ability',
