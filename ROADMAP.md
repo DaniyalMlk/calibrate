@@ -128,3 +128,15 @@ tests that exercise the numerics against closed-form or published results.
 - [x] The crossing point, and the share of the departure the signed area misses
 - [x] Areas validated against numerical integration of the same curves
 - [x] Per-group calibration and linking wired into the command
+
+## Phase 14 — Marginal maximum likelihood calibration
+
+- [x] Marginal likelihood of a response pattern, integrated on a quadrature rule
+- [x] Expectation step: ability posteriors accumulated into expected item counts
+- [x] Maximisation step: one weighted logistic fit per item, Rasch and 2PL
+- [x] Convergence judged on the marginal log-likelihood, with monotonicity asserted
+- [x] Item-only screening, keeping the perfect and zero scorers marginal estimation can use
+- [x] Cross-product and expected-count standard errors for the item parameters
+- [x] Population distribution estimated from the data, with its shape reported
+- [x] Validation against the closed-form single-item case and against joint estimation
+- [x] Command-line entry point comparing the two estimators on one set of responses

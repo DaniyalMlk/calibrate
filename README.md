@@ -11,7 +11,7 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 13 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
+Phases 1 to 14 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
 end to end — `npm run demo` administers one against a synthetic bank and prints
 the transcript — `npm run study` compares selection policies over a simulated
 population, `npm run fit` estimates item parameters from a matrix of responses,
@@ -27,6 +27,11 @@ answered at any of its levels, and the transcript reports the points awarded
 rather than a right/wrong verdict. Two calibrations of the same anchor can be
 put on a single metric — `npm run link` shows the four linking methods side by
 side.
+
+Item parameters can be estimated two ways. Joint estimation is fast and
+intuitive, and has a structural bias that no amount of data removes; marginal
+maximum likelihood integrates the ability out instead and does not.
+`npm run mml` runs both on the same responses and shows where they part company.
 
 A bank can also be scanned for items that behave differently for two groups of
 equally able candidates. `npm run dif` runs the Mantel-Haenszel family over a
@@ -48,6 +53,7 @@ npm run mixed     # an adaptive session over a bank mixing both item formats
 npm run study     # selection policies compared over a simulated population
 npm run recover   # how well each estimator recovers a known ability
 npm run fit       # item parameters calibrated from a matrix of responses
+npm run mml       # the same, by marginal maximum likelihood, compared against joint
 npm run link      # two calibrations of one anchor put on a single metric
 npm run dif       # a two-group form scanned for differential item functioning
 npm run web       # the browser interface, on http://localhost:5173/web/
@@ -590,6 +596,135 @@ classical fix; on the bank above it takes the mean absolute error from 0.068 to
 0.060, and at 150 respondents from 0.163 to 0.152. That is a Rasch result, so it
 is applied by default only there — under the 2PL the discriminations absorb part
 of the same bias and the correction measurably overshoots.
+
+### Calibrating without the person parameters
+
+The bias correction above is a patch on something structural. Joint estimation
+estimates an ability for every respondent, so the number of parameters grows
+with the sample; every ability is pinned down by only as many responses as there
+are items, and that noise never averages away. It lands in the item parameters
+instead. Collecting ten times the data does not help, because ten times the data
+arrives with ten times the ability parameters.
+
+Marginal maximum likelihood removes the person parameters rather than estimating
+them. Ability is treated as a draw from a population distribution and integrated
+out, which leaves a likelihood in the item parameters alone — two per item,
+however many people sat the test.
+
+```bash
+npm run mml
+```
+
+```
+Source: simulated: 1500 respondents, 20 rasch items
+Model: rasch, 41-point Gauss-Hermite quadrature, normal population
+Marginal: converged in 12 cycles, log-likelihood -15757.172
+Screened: 0 item(s) removed, all 1500 respondents kept (joint estimation had to drop 6)
+
+item                           p+   b(mml)     se   b(jml)   diff*
+------------------------------------------------------------------
+arrays-0000                 0.704   -1.052  0.064   -1.632   0.110
+graphs-0001                 0.549   -0.241  0.059   -0.759   0.048
+dynamic-programming-0002    0.376    0.613  0.060    0.157  -0.014
+arrays-0003                 0.254    1.298  0.066    0.890  -0.061
+graphs-0004                 0.102    2.559  0.092    2.236  -0.147
+...
+
+Against the generating difficulties, both centred:
+                corr     mae   spread
+  marginal    0.9995  0.0451   0.9772
+  joint       0.9995  0.0671   1.0477
+  A spread ratio above one is a stretched scale. Uncorrected joint estimation
+  stretches it by about L/(L-1), which on 20 items is 1.053.
+
+Marginal log-likelihood of each solution, on the same rule:
+  marginal estimates -15757.172
+  joint estimates    -15906.284 (149.111 worse)
+```
+
+Both estimators agree almost perfectly on *which* items are hard — they
+correlate at 0.9995 — and disagree on how hard. The joint estimates come out
+with their spread inflated by 4.8 per cent where the theoretical stretch for a
+20-item test is 5.3 per cent, and the marginal ones do not.
+
+In code:
+
+```ts
+import { marginalCalibrate, toMarginalItems } from 'calibrate';
+
+const result = marginalCalibrate(matrix, { model: 'rasch' });
+
+result.items;          // id, difficulty, standard error, whether it hit a bound
+result.logLikelihood;  // the marginal log-likelihood at these parameters
+result.history;        // its value after every cycle, which never goes down
+toMarginalItems(result);
+```
+
+The fitting alternates in a different way from joint estimation. **The
+expectation step** gives every respondent a posterior over the ability range
+rather than a point estimate, and accumulates posterior-weighted counts: how
+many people of each ability sat each item, and how many passed it. **The
+maximisation step** then fits each item to its own column of that table, which
+is a small weighted logistic regression with no person parameters in it at all.
+The items decouple completely there, which is why the method scales — a
+thousand-item bank is a thousand two-parameter problems.
+
+Four things are worth saying about it.
+
+**Perfect and zero scorers stay in.** Joint estimation has to discard them
+because there is no finite ability to estimate; marginal estimation never
+estimates their ability, so a perfect scorer contributes a posterior piled up at
+the top of the scale and perfectly finite. Keeping them is not merely
+data-thrift: the respondents a joint calibration drops are exactly the ablest
+and the least able, and what is left is a truncated population. `screenExtremeItems`
+therefore removes only the items that carry no information, and leaves every row
+in place.
+
+**The likelihood is checked, not assumed.** Each cycle of
+expectation-maximisation is guaranteed not to decrease the marginal
+log-likelihood. That is a strong enough property to test directly, and the suite
+does: across several seeds and both models, every consecutive pair in `history`
+is asserted non-decreasing. A violation would mean the two steps are optimising
+different things, which is how this algorithm usually goes wrong. The estimator
+is also scored head to head against the joint one on the marginal likelihood,
+where it has to win — losing would mean it stopped short of its own target.
+
+**There is a case with a closed form, and it is in the tests.** On a one-item
+test the marginal likelihood depends on the data only through the proportion
+correct, and is stationary exactly where the population-averaged probability of
+a correct answer equals it. That is a scalar equation with a single root; the
+test suite solves it independently by bisection and requires the estimator to
+land on it to six decimal places. As a corollary, an item half the population
+passes must come out at a difficulty of exactly zero, because the standard
+normal is symmetric and the logistic is antisymmetric about its own location.
+
+**The standard errors are the cross-product ones by default.** The obvious
+approach — take the curvature of the expected-count likelihood at convergence —
+treats the expected counts as though they had been observed. They were not: they
+were reconstructed from responses whose abilities are unknown, and ignoring that
+leaves out the missing information, so the intervals come out too narrow.
+Working on the marginal likelihood instead avoids it, and by Fisher's identity
+its gradient for one respondent is nothing new to derive — it is the posterior
+expectation of the complete-data gradient, the same quantity the expectation
+step already averages, accumulated per respondent rather than pooled. Summing
+the outer products of those estimates the information directly. Both are
+available (`errors: 'expected-counts'` gives the curvature form), and on the
+same data the cross-product intervals are visibly the wider of the two. What the
+cross-product form wants in return is respondents, so on a few dozen the
+curvature form is the steadier choice.
+
+The population can also be estimated rather than assumed, with
+`latent: 'empirical'`. Its mean and variance are not recoverable and never could
+be — they *define* the metric the item parameters are reported on — but its
+shape is, and `populationSkewness` and `populationExcessKurtosis` report it. On a
+population that is genuinely a three-to-one mixture of a low group and a high
+one, the fitted distribution comes out clearly right-skewed and reaches a higher
+marginal log-likelihood than the normal it is not. The one approximation in the
+procedure lives here: re-standardising a distribution held on a fixed set of
+nodes is exact in the continuum but interpolates on a grid, so with the
+population estimated the likelihood can give back a fraction of that
+interpolation error on a cycle. With the population held fixed it is exactly
+monotone, and the tests distinguish the two cases rather than loosening both.
 
 ### Finding items that do not fit
 
@@ -1224,6 +1359,30 @@ picks that origin by convention. A generating bank has no reason to share it, so
 comparing raw numbers reports the difference between two conventions as though
 it were estimation error — on a short bank that difference dominates everything
 else, and it is not an error at all.
+
+**Both calibration methods, not just the better one.** Marginal maximum
+likelihood is the more defensible estimator and joint estimation could have been
+replaced by it. It is kept because the two answer different questions: joint
+estimation produces an ability for every respondent as a by-product, which the
+fit statistics and the bank health report consume directly, and it converges in
+a fraction of the cycles. Keeping both also makes the bias visible instead of
+asserted — `npm run mml` runs them on the same responses and shows the stretch.
+
+**The expected counts are held per item, not per node alone.** A single table of
+counts indexed by ability node would be smaller and would be correct if everyone
+answered everything. With missing responses it is silently wrong: a respondent
+who skipped one item would still be counted as having sat it. Indexing the
+counts by item as well as by node costs memory proportional to the bank and
+makes a skipped item contribute to nothing.
+
+**Standard errors from the cross-product, not from the curvature.** The
+curvature of the expected-count likelihood is what most implementations report
+and is the cheaper of the two. It also treats reconstructed counts as observed
+data, which leaves out the uncertainty in the reconstruction and gives intervals
+that are too narrow. The cross-product form works on the marginal likelihood
+itself and does not, so it is the default; the curvature form stays available
+because on a small sample the outer product of a few dozen vectors is the noisier
+estimate of the two.
 
 **Tests check against closed forms, not against previous output.** `P(b) = 0.5`
 for the 2PL, `(1 + c) / 2` for the 3PL, an information peak of `a^2 / 4` at

@@ -391,3 +391,74 @@ describe('dif command, the model-based half', () => {
     expect(capture(argv).out).toBe(capture(argv).out);
   });
 });
+
+describe('cli mml', () => {
+  const FAST = ['mml', '--respondents', '500', '--bank', '10', '--points', '25'];
+
+  it('is listed in the usage text', () => {
+    const { out } = capture(['--help']);
+    expect(out).toContain('calibrate mml');
+    expect(out).toContain('marginal maximum likelihood');
+  });
+
+  it('reports convergence and the marginal log-likelihood', () => {
+    const { code, out } = capture(FAST);
+    expect(code).toBe(0);
+    expect(out).toMatch(/Marginal: converged in \d+ cycles, log-likelihood -\d+\.\d{3}/);
+  });
+
+  it('says how many respondents joint estimation had to discard', () => {
+    const { out } = capture(FAST);
+    const dropped = out.match(/joint estimation had to drop (\d+)/);
+    expect(dropped).not.toBeNull();
+    expect(out).toContain('all 500 respondents kept');
+  });
+
+  it('shows the joint estimator stretching the scale and the marginal one not', () => {
+    const { out } = capture(FAST);
+    const rows = out.match(/marginal\s+\d\.\d{4}\s+\d\.\d{4}\s+(\d\.\d{4})[\s\S]*?joint\s+\d\.\d{4}\s+\d\.\d{4}\s+(\d\.\d{4})/);
+    expect(rows).not.toBeNull();
+    const marginalSpread = Number(rows?.[1]);
+    const jointSpread = Number(rows?.[2]);
+    expect(jointSpread).toBeGreaterThan(marginalSpread);
+    expect(Math.abs(marginalSpread - 1)).toBeLessThan(Math.abs(jointSpread - 1));
+  });
+
+  it('scores both solutions on the marginal likelihood, and its own wins', () => {
+    const { out } = capture(FAST);
+    const scores = out.match(
+      /marginal estimates\s+(-\d+\.\d{3})\n\s+joint estimates\s+(-\d+\.\d{3})/,
+    );
+    expect(scores).not.toBeNull();
+    // Not a stylistic preference: the marginal estimates are chosen to maximise
+    // exactly this quantity, so losing here would mean the optimiser stopped
+    // somewhere short of what it was aiming at.
+    expect(Number(scores?.[1])).toBeGreaterThan(Number(scores?.[2]));
+  });
+
+  it('describes the fitted population when asked to estimate one', () => {
+    const { out } = capture([...FAST, '--latent', 'empirical']);
+    expect(out).toMatch(/Fitted population: skewness -?\d+\.\d{3}, excess kurtosis -?\d+\.\d{3}/);
+  });
+
+  it('says nothing about a population it did not fit', () => {
+    const { out } = capture(FAST);
+    expect(out).not.toContain('Fitted population');
+  });
+
+  it('shows the discrimination columns only under the 2PL', () => {
+    expect(capture(FAST).out).not.toContain('a(mml)');
+    expect(capture([...FAST, '--model', '2pl']).out).toContain('a(mml)');
+  });
+
+  it('rejects a population it does not know how to fit', () => {
+    const { code, err } = capture([...FAST, '--latent', 'student-t']);
+    expect(code).toBe(1);
+    expect(err).toContain('must be one of');
+  });
+
+  it('is deterministic for a given seed', () => {
+    const argv = [...FAST, '--seed', '77'];
+    expect(capture(argv).out).toBe(capture(argv).out);
+  });
+});

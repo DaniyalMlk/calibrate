@@ -31,7 +31,8 @@
     "recover": "tsx src/cli/main.ts recover",
     "fit": "tsx src/cli/main.ts fit",
     "link": "tsx src/cli/main.ts link",
-    "dif": "tsx src/cli/main.ts dif"
+    "dif": "tsx src/cli/main.ts dif",
+    "mml": "tsx src/cli/main.ts mml"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

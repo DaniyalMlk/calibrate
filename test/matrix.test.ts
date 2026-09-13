@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MISSING, parseResponseCsv, ResponseMatrix, type Cell } from '../src/calibration/matrix.js';
-import { screenExtremes } from '../src/calibration/screen.js';
+import { screenExtremeItems, screenExtremes } from '../src/calibration/screen.js';
 
 const rows: Cell[][] = [
   [1, 1, 0],
@@ -221,6 +221,97 @@ describe('screenExtremes', () => {
           rows: [
             [1, 1],
             [0, 0],
+          ],
+        }),
+      ),
+    ).toThrow(/carry no information/);
+  });
+});
+
+describe('screenExtremeItems', () => {
+  it('removes an item nobody passed and one everybody passed', () => {
+    const matrix = new ResponseMatrix({
+      rows: [
+        [1, 0, 1, 1],
+        [0, 0, 1, 0],
+        [1, 0, 1, 1],
+      ],
+      itemIds: ['mixed', 'never', 'always', 'also-mixed'],
+    });
+    const result = screenExtremeItems(matrix);
+    expect(result.matrix.itemIds).toEqual(['mixed', 'also-mixed']);
+    expect(result.excludedItems.map((exclusion) => exclusion.id)).toEqual(['never', 'always']);
+    expect(result.excludedItems.map((exclusion) => exclusion.reason)).toEqual([
+      'answered-by-none',
+      'answered-by-all',
+    ]);
+  });
+
+  it('keeps every respondent, including perfect and zero scorers', () => {
+    const matrix = new ResponseMatrix({
+      rows: [
+        [1, 1, 1],
+        [0, 0, 0],
+        [1, 0, 1],
+      ],
+      personIds: ['perfect', 'zero', 'middling'],
+    });
+    const result = screenExtremeItems(matrix);
+    expect(result.excludedPersons).toEqual([]);
+    expect(result.matrix.personIds).toEqual(['perfect', 'zero', 'middling']);
+  });
+
+  it('removes an item nobody reached', () => {
+    const matrix = new ResponseMatrix({
+      rows: [
+        [1, MISSING],
+        [0, MISSING],
+      ],
+      itemIds: ['answered', 'unreached'],
+    });
+    const result = screenExtremeItems(matrix);
+    expect(result.matrix.itemIds).toEqual(['answered']);
+    expect(result.excludedItems[0]?.reason).toBe('no-responses');
+  });
+
+  it('returns the matrix unchanged, and always in one pass', () => {
+    const matrix = new ResponseMatrix({
+      rows: [
+        [1, 0],
+        [0, 1],
+      ],
+    });
+    const result = screenExtremeItems(matrix);
+    expect(result.matrix).toBe(matrix);
+    expect(result.passes).toBe(1);
+    expect(result.excludedItems).toEqual([]);
+  });
+
+  it('keeps respondents that the joint screen would have thrown away', () => {
+    const matrix = new ResponseMatrix({
+      rows: [
+        [1, 1, 1, 0],
+        [1, 1, 1, 1],
+        [0, 0, 0, 0],
+        [1, 0, 1, 0],
+        [0, 1, 0, 1],
+      ],
+      personIds: ['mixed', 'perfect', 'zero', 'low', 'other'],
+    });
+    // The joint screen has to drop the perfect and the zero scorer; the item
+    // screen keeps both, and removes no item, because every column is mixed.
+    expect(screenExtremes(matrix).matrix.personCount).toBe(3);
+    expect(screenExtremeItems(matrix).excludedItems).toEqual([]);
+    expect(screenExtremeItems(matrix).matrix.personCount).toBe(matrix.personCount);
+  });
+
+  it('refuses data in which no item carries information', () => {
+    expect(() =>
+      screenExtremeItems(
+        new ResponseMatrix({
+          rows: [
+            [1, 0],
+            [1, 0],
           ],
         }),
       ),
