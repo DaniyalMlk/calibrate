@@ -140,3 +140,15 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Population distribution estimated from the data, with its shape reported
 - [x] Validation against the closed-form single-item case and against joint estimation
 - [x] Command-line entry point comparing the two estimators on one set of responses
+
+## Phase 15 — Reporting a fixed form
+
+- [x] Distribution of total scores at an ability, by recursion over items
+- [x] The same distribution marginalised over a population
+- [x] Score likelihoods across the ability grid, computed once per form
+- [x] Expected a posteriori scoring against an arbitrary population, not only a normal prior
+- [x] Score conversion table: ability, standard error and population share per total
+- [x] Marginal reliability, and the average standard error behind it
+- [x] Sufficiency of the total score under Rasch, asserted over every response pattern
+- [x] Both item formats, binary and rubric-scored, on one form
+- [x] Scoring report wired into the calibration command
