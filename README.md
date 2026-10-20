@@ -43,6 +43,64 @@ what it found beside what was actually planted — then runs the same data throu
 logistic regression and Raju's area measures, which do not pool and can tell a
 uniformly harder item from one whose response curves cross.
 
+## What is checked, and against what
+
+An ability estimate is a number someone is asked to believe about a person, so
+the question that matters about this engine is how much of it was checked and
+against what. Here is what was measured. Every figure is produced by
+`npm run evidence`, which runs in CI and exits non-zero if any of them moves:
+
+| Check | Result |
+| --- | --- |
+| Peak information of a 2PL item against the closed form `a^2 / 4` | 0, over 741 parameter sets |
+| A two-category graded item against the 2PL, and two-category partial credit against Rasch | 0, over 33,048 evaluations |
+| Category probabilities summing to one, graded and partial credit | below 1e-14, over 405 evaluations |
+| The total-score distribution by recursion against enumerating every pattern | below 1e-14, over 32,768 patterns at 7 abilities |
+| Two patterns with the same total score, scored under Rasch and under the 2PL | the same ability over all 1,024 patterns, to the root-finder's tolerance and no further: below 1e-7 at its default of 1e-8, below 1e-14 when that is tightened to 1e-14. Under the 2PL the same comparison spans 2.31 logits |
+| Four linking methods recovering a transformation applied on purpose (A 1.35, B -0.42) | below 1e-14, in both coefficients, 30 common items |
+| Raju's signed and unsigned areas in closed form against quadrature | below 1e-11, over 5 item pairs, crossing and not |
+| The chi-square upper tail at published critical values, 1 to 10 degrees of freedom | below 1e-14, over 7 points from 0.001 to 0.05 |
+| Joint estimation's scale inflation on a 10-item test, against the closed form `L / (L - 1)` | 1.1123 measured against 1.1111 predicted; the marginal estimator reads 0.9968 |
+| Joint estimation's scale inflation on a 20-item test, against the closed form `L / (L - 1)` | 1.0495 measured against 1.0526 predicted; the marginal estimator reads 0.9933 |
+
+Two things about how those rows are written.
+
+**An identity says zero, not "small".** The peak of a 2PL item's information is
+`a^2 / 4` by construction, and a two-category graded item *is* the 2PL — the
+polytomous code path reduces to the same arithmetic — so the difference is
+exactly zero and the row says so. Publishing a tolerance there would accept a
+real divergence appearing in the fifteenth digit. This README used to claim the
+two-category reduction agreed "to fourteen digits"; it agrees to all of them.
+
+**A residue publishes a bound, not its digits.** The last digits of a
+floating-point residue are not portable — a different interpreter or a
+different order of summation changes them — so a table quoting them would be
+wrong somewhere without anything being broken. The bounds were chosen by
+measuring what they refuse rather than by picking a comfortable number:
+slipping one item's difficulty by 1e-9 moves the Raju row a hundred times past
+its bound, and slipping a chi-square statistic by 1e-12 moves that row past its
+own.
+
+The sufficiency row is worth reading twice. Under the Rasch model two
+candidates with the same total score have the same likelihood and therefore the
+same ability estimate, exactly — so what is left over is the root-finder's
+stopping rule rather than anything about the model. Tightening that tolerance
+from 1e-8 to 1e-14 drops the disagreement by six orders of magnitude along with
+it, which is how you can tell the residue is the solver and not the
+mathematics; a single figure under a bound could not distinguish the two. Under
+the 2PL the same comparison spans 2.31 logits, because there the total score is
+genuinely not sufficient — which items were answered correctly carries
+information the total throws away.
+
+The last two rows are a measurement against a number known in advance. Joint
+maximum likelihood estimates a parameter for every candidate alongside every
+item, and the candidates keep arriving as the sample grows, so its bias does
+not vanish with more data: for the Rasch model the leading term stretches the
+difficulty scale by `L / (L - 1)`. On a ten-item test that predicts 1.1111 and
+the measured inflation is 1.1123, over 2,000 respondents and five seeds. The
+marginal estimator integrates ability out instead of estimating it, has no such
+term, and reads 0.9968.
+
 ## Installing
 
 ```bash
@@ -170,8 +228,11 @@ through.
 
 Both families reduce to the dichotomous models when given a single threshold: a
 two-category graded item *is* the 2PL, and a two-category partial credit item
-*is* the Rasch model, agreeing to fourteen digits. The test suite checks this
-against `models/response.ts` rather than against a second copy of the formula.
+*is* the Rasch model. Not approximately — the polytomous path reduces to the
+same arithmetic, so the two agree to the last bit, over every parameter set
+[the evidence gate](#what-is-checked-and-against-what) sweeps. The test suite
+checks this against `models/response.ts` rather than against a second copy of
+the formula.
 
 ### Forms that mix both
 
