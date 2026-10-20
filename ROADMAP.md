@@ -168,3 +168,15 @@ tests that exercise the numerics against closed-form or published results.
 - [x] An evidence table of what was checked and against what, recomputed by a
       gate CI runs and pinned to the document in both directions
 - [ ] A published release on the registry
+
+## Phase 17 — Person fit
+
+- [x] Standardised log-likelihood of a response pattern, with the moments taken
+      over categories so both item formats share one path
+- [x] The correction for an ability estimated from the same responses, derived
+      against the score equation the estimator solves
+- [x] Infit and outfit mean squares for a person, standardised
+- [x] A scan over a sitting, worst first, with the threshold stated
+- [x] Departures planted on purpose: preknowledge, carelessness, guessing
+- [x] Detection scored against the key, with the false positive rate beside it
+- [x] Command-line entry point

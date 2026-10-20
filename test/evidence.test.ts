@@ -100,6 +100,20 @@ describe('the prose around the table', () => {
     expect(README).toContain(`${(logits as RegExpExecArray)[1]} logits`);
   });
 
+  it('quotes the person-fit spreads the gate measured', () => {
+    // The prose in the person-fit section states these three numbers as well,
+    // away from the table, so they are pinned too.
+    const row = checks.find((check) => check.label.includes('person-fit statistic'));
+    expect(row).toBeDefined();
+    const spreads = [...(row as Check).result.matchAll(/\d\.\d{2}/g)].map((match) => match[0]);
+    expect(spreads.length).toBe(3);
+    const prose = README.slice(README.indexOf('### Candidates who did not answer'));
+    expect(prose).toContain(
+      `a standard\ndeviation of ${spreads[0]}, \`lz\` at the estimate ${spreads[1]}, and ` +
+        `\`lzStar\` at the estimate ${spreads[2]}`,
+    );
+  });
+
   it('quotes the joint-bias figures the gate measured', () => {
     const tenItem = checks.find((check) => check.label.includes('10-item test'));
     expect(tenItem).toBeDefined();

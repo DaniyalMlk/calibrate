@@ -11,7 +11,7 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 16 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
+Phases 1 to 17 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
 An adaptive test runs end to end — `npm run demo` administers one against a
 synthetic bank and prints the transcript — `npm run study` compares selection
 policies over a simulated population, `npm run fit` estimates item parameters
@@ -35,6 +35,10 @@ maximum likelihood integrates the ability out instead and does not.
 then reports what the calibrated form does: the conversion from each total score
 to an ability and its standard error, the totals the population will produce, and
 the share of the spread in ability the form recovers.
+
+A response pattern can be scanned too, rather than only an item: `npm run
+misfit` plants candidates who guessed, who were careless, or who knew part of
+the form in advance, and scores the person-fit statistic against that key.
 
 A bank can also be scanned for items that behave differently for two groups of
 equally able candidates. `npm run dif` runs the Mantel-Haenszel family over a
@@ -62,6 +66,7 @@ against what. Here is what was measured. Every figure is produced by
 | The chi-square upper tail at published critical values, 1 to 10 degrees of freedom | below 1e-14, over 7 points from 0.001 to 0.05 |
 | Joint estimation's scale inflation on a 10-item test, against the closed form `L / (L - 1)` | 1.1123 measured against 1.1111 predicted; the marginal estimator reads 0.9968 |
 | Joint estimation's scale inflation on a 20-item test, against the closed form `L / (L - 1)` | 1.0495 measured against 1.0526 predicted; the marginal estimator reads 0.9933 |
+| The person-fit statistic on a 40-item form, at a known ability and an estimated one | standard deviation 0.99 when the ability is known, 0.91 when it is estimated from the same responses, and 1.00 once corrected; over 2,999 model-conforming candidates |
 
 Two things about how those rows are written.
 
@@ -135,6 +140,8 @@ npm run fit       # item parameters calibrated from a matrix of responses
 npm run mml       # the same, by marginal maximum likelihood, then the form's score report
 npm run link      # two calibrations of one anchor put on a single metric
 npm run dif       # a two-group form scanned for differential item functioning
+npm run misfit    # a sitting scanned for candidates whose pattern does not fit
+npm run evidence  # recompute every figure in the table above
 npm run web       # the browser interface, on http://localhost:5173/web/
 ```
 
@@ -1286,6 +1293,92 @@ candidates who will sit the form.
 Unequal asymptotes are refused rather than approximated. Two curves that do not
 meet at the tails stay a constant distance apart forever, so the area between
 them is infinite, and no finite number describes it.
+
+### Candidates who did not answer the way the model says
+
+Item fit asks whether an item behaves for the population the way the model
+says. The same question can be asked of a candidate. A pattern that misses easy
+items and answers hard ones is improbable under any single ability, and the
+estimate reported for it summarises something that is not there — a candidate
+who guessed, who was interrupted, who knew part of the form in advance, or who
+is being measured on a trait the form does not test. The statistic cannot tell
+those apart, which is why it flags a pattern for a human rather than correcting
+it.
+
+```ts
+import { estimateMle, personFit, scanPersons } from 'calibrate-irt';
+
+const estimate = estimateMle(responses);
+const fit = personFit(responses, estimate.theta);
+fit.lz; // standardised log-likelihood: negative means less likely than expected
+fit.lzStar; // the same, corrected for the ability being estimated from these responses
+fit.infit; // information-weighted mean square residual, near 1 when the pattern fits
+fit.outfit; // unweighted, so the items furthest from the candidate dominate it
+
+scanPersons(sitting); // everyone below the one-sided 5% point, worst first
+```
+
+`lz` is standard normal when the ability is **known**. Substituting an estimate
+made from the same responses is not free: the estimator has already moved the
+ability towards whatever those responses said, which absorbs part of the
+discrepancy the statistic is trying to measure. What comes back has a variance
+below one and a test that rejects less often than it claims — conservative,
+which is the direction that quietly does nothing.
+
+Writing the statistic as `D(theta) = sum (x - P) r` with `r = ln(P / Q)`, and
+taking the estimator to solve `sum w (x - P) = 0` with `w = D a` — which the
+maximum likelihood estimator does — a first-order expansion in `thetaHat` gives
+
+```
+D(thetaHat) ~ sum (x - P) (r - c w),    c = sum PQ r w / sum PQ w^2
+```
+
+so the variance to divide by is `sum PQ (r - c w)^2` and not `sum PQ r^2`. The
+correction subtracts the part of the statistic the estimator has already spent.
+It is a projection, so the corrected variance is always the smaller of the two
+and `lzStar` is never nearer zero than `lz`. Measured over 3,000 model-conforming
+candidates on a forty-item form: `lz` at the true ability has a standard
+deviation of 0.99, `lz` at the estimate 0.91, and `lzStar` at the estimate 1.00.
+
+The moments are summed over categories rather than over right and wrong, so a
+rubric item needs no second code path — for a two-category item the sums reduce
+to `P lnP + Q lnQ` and `PQ ln(P/Q)^2` exactly. The correction is not general in
+the same way: it is stated for the weights of the dichotomous score equation,
+so a pattern containing a polytomous item reports `lzStar` as `null` rather
+than a number that would look right.
+
+#### What it catches, and what it does not
+
+`npm run misfit` plants departures in a simulated sitting and scores the scan
+against the key:
+
+```
+  departure             found   false+   mean lz   sd lz  mean lz*  sd lz*
+  none                     --     5.5%     0.074   0.918     0.086   1.010
+  preknowledge          99.0%     5.8%     0.081   0.925     0.094   1.019
+  careless              94.0%     6.1%     0.039   0.909     0.045   0.996
+  guessing              53.4%     4.7%     0.081   0.883     0.095   0.976
+  guessing, ordered     39.3%     5.6%     0.082   0.905     0.093   0.999
+```
+
+The `none` row is the calibration check: nothing was done to anyone, so the
+false positive rate sits near the nominal 5% and the two spreads show what the
+correction is for.
+
+The two guessing rows are the same behaviour, on the same bank, differing only
+in the order the items are administered in. Guessing runs to the end of the
+form, so what it costs depends on what is at the end. In a bank in no
+particular order the guessed items sit at an average difficulty and the
+residuals are large; order the form easiest-to-hardest and they land where the
+candidate was unlikely to succeed anyway, where one answer in four is close to
+what the model already expects and there is little left for a residual to find.
+The detection rate is a property of the form as much as of the statistic, which
+is why the command reports each departure as its own sitting rather than
+averaging one number over a mixture of them.
+
+A scan over a whole sitting is also a multiple-comparison problem: at a nominal
+5%, a thousand well-behaved candidates produce about fifty flags. The count is
+where a review starts, not a verdict on anyone.
 
 ## The web interface
 
