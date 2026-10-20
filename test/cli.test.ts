@@ -589,3 +589,59 @@ describe('cli: per-command help', () => {
     });
   }
 });
+
+describe('misfit command', () => {
+  // One sitting, read by several assertions. Each run scores five sittings of
+  // candidates end to end, so re-running it per case is the difference
+  // between a second and a minute.
+  const FAST = ['misfit', '--candidates', '120', '--length', '20'];
+  const run = capture(FAST);
+  const rowFor = (label: string): string => {
+    const row = run.out.split('\n').find((line) => line.trim().startsWith(label));
+    expect(row, `no row for ${label}`).toBeDefined();
+    return row as string;
+  };
+
+  it('reports every departure, with the calibration row first', () => {
+    expect(run.code).toBe(0);
+    for (const label of ['none', 'preknowledge', 'careless', 'guessing', 'guessing, ordered']) {
+      expect(run.out).toContain(label);
+    }
+    expect(run.out.indexOf('none')).toBeLessThan(run.out.indexOf('preknowledge'));
+  });
+
+  it('flags at the critical value the nominal rate implies', () => {
+    expect(run.out).toContain('-1.6449');
+    expect(capture([...FAST, '--alpha', '0.01']).out).toContain('-2.3263');
+  });
+
+  it('shows the correction widening the spread back towards one', () => {
+    // found, false+, mean lz, sd lz, mean lz*, sd lz*
+    const numbers = rowFor('none').trim().split(/\s+/).slice(1);
+    const sdPlain = Number(numbers[3]);
+    const sdCorrected = Number(numbers[5]);
+    expect(sdPlain).toBeLessThan(1);
+    expect(Math.abs(sdCorrected - 1)).toBeLessThan(Math.abs(sdPlain - 1));
+  });
+
+  it('catches preknowledge more often than guessing', () => {
+    const found = (label: string): number =>
+      Number(/(\d+\.\d)%/.exec(rowFor(label))?.[1]);
+    expect(found('preknowledge')).toBeGreaterThan(found('guessing'));
+  });
+
+  it('is deterministic for a given seed', () => {
+    const seeded = ['misfit', '--candidates', '60', '--length', '12', '--seed'];
+    expect(capture([...seeded, '5']).out).toBe(capture([...seeded, '5']).out);
+    expect(capture([...seeded, '5']).out).not.toBe(capture([...seeded, '6']).out);
+  });
+
+  it('refuses a share, extent or alpha outside its range', () => {
+    // These fail in the parser, before any sitting is generated.
+    expect(capture([...FAST, '--share', '1.5']).err).toContain('"--share" must be between 0 and 1');
+    expect(capture([...FAST, '--extent', '0']).err).toContain('"--extent" must be greater than 0');
+    expect(capture([...FAST, '--alpha', '0.7']).err).toContain(
+      '"--alpha" must be between 0 and 0.5',
+    );
+  });
+});
