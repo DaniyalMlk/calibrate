@@ -11,13 +11,13 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 15 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
-end to end — `npm run demo` administers one against a synthetic bank and prints
-the transcript — `npm run study` compares selection policies over a simulated
-population, `npm run fit` estimates item parameters from a matrix of responses,
-and `npm run web` serves a browser interface that runs a session live and draws
-the posterior, the response curves, the information curves and the bank's
-coverage as it goes.
+Phases 1 to 16 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
+An adaptive test runs end to end — `npm run demo` administers one against a
+synthetic bank and prints the transcript — `npm run study` compares selection
+policies over a simulated population, `npm run fit` estimates item parameters
+from a matrix of responses, and `npm run web` serves a browser interface that
+runs a session live and draws the posterior, the response curves, the
+information curves and the bank's coverage as it goes.
 
 Items may be scored in two categories or in many. The graded response, partial
 credit and generalized partial credit models sit alongside the dichotomous ones,

@@ -152,3 +152,17 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Sufficiency of the total score under Rasch, asserted over every response pattern
 - [x] Both item formats, binary and rubric-scored, on one form
 - [x] Scoring report wired into the calibration command
+
+## Phase 16 — Distribution
+
+- [x] Continuous integration: the suite, the type check and the build, on the
+      Node versions `engines` claims
+- [x] The built binary exercised as a user runs it, with the command list read
+      from the program rather than from the workflow
+- [x] A manifest that can be published: licence file, repository metadata,
+      resolvable engines floor, both bin names, no source maps over absent sources
+- [x] A build that clears its output directory, so a pack cannot ship artefacts
+      from an earlier configuration
+- [x] Packaging tests asserting the tarball's actual contents
+- [x] Tag-driven release workflow publishing over OIDC, with no stored credential
+- [ ] A published release on the registry
