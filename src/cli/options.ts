@@ -72,11 +72,25 @@ export function parseOptions<S extends OptionSpecs>(
   return values as ParsedOptions<S>;
 }
 
+/**
+ * The column at which option descriptions start, for a given specification.
+ *
+ * Exported so that a line which is not itself a declared option — `-h, --help`,
+ * which every command answers and none declares — can be written into the same
+ * column as the rest, rather than against a width guessed once and left to
+ * drift the next time an option is renamed.
+ */
+export function describeWidth(specs: OptionSpecs): number {
+  const entries = Object.entries(specs);
+  if (entries.length === 0) return 2;
+  return Math.max(...entries.map(([name, spec]) => `--${name} <${spec.kind}>`.length)) + 2;
+}
+
 /** Render the option list of a command as aligned help text. */
 export function describeOptions(specs: OptionSpecs): string {
   const entries = Object.entries(specs);
   if (entries.length === 0) return '';
-  const width = Math.max(...entries.map(([name, spec]) => `--${name} <${spec.kind}>`.length)) + 2;
+  const width = describeWidth(specs);
   return entries
     .map(([name, spec]) => {
       const flag = `--${name} <${spec.kind}>`;

@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests on Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The floor is the one `engines` claims, so the claim is tested rather
+        # than asserted. The top is current.
+        node-version: ["20.19.0", "22.x", "24.x"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - name: Install
+        run: npm ci
+      # The type check covers the library, its tests and the web interface,
+      # which have three different tsconfigs and three different lib sets.
+      - name: Type check
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
+
+  commands:
+    name: Every command answers for itself
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      # `calibrate demo --help` used to exit 1 with `unknown option "--help"`.
+      # The suite covers that now, but it covers it through the exported
+      # entry point; this runs the built binary the way a user would, which
+      # is the only thing that exercises the shebang, the bin shim and the
+      # emitted module graph together. The command list comes from the
+      # program rather than from this file, so a command added later is
+      # covered without anyone editing a workflow.
+      - name: Help, for the program and for each of its commands
+        run: |
+          set -euo pipefail
+          node dist/cli/main.js --help > /dev/null
+          commands=$(node --input-type=module -e "
+            import { COMMAND_NAMES } from './dist/cli/run.js';
+            process.stdout.write(COMMAND_NAMES.join(' '));
+          ")
+          if [ -z "$commands" ]; then
+            echo "no commands found: the help check would pass vacuously"
+            exit 1
+          fi
+          for command in $commands; do
+            printf 'calibrate %s --help ... ' "$command"
+            out=$(node dist/cli/main.js "$command" --help)
+            case "$out" in
+              *"calibrate $command"*) echo "ok" ;;
+              *) echo "help did not name the command"; exit 1 ;;
+            esac
+          done
+      # The other half: a command that cannot be run is not much use either.
+      # These are the short ones, with their work cut down to keep the job
+      # quick — the full runs are exercised by the suite.
+      - name: The short commands run end to end
+        run: |
+          set -euo pipefail
+          node dist/cli/main.js demo --bank 60 --max 8 > /dev/null
+          node dist/cli/main.js mixed --bank 60 --max 8 > /dev/null
+          node dist/cli/main.js recover --replications 2 --points 3 --length 10 > /dev/null
+          echo "demo, mixed and recover all ran"
+      - name: A bad invocation fails rather than carrying on
+        run: |
+          set -euo pipefail
+          if node dist/cli/main.js nonsense > /dev/null 2>&1; then
+            echo "an unknown command exited 0"
+            exit 1
+          fi
+          if node dist/cli/main.js demo --theta high > /dev/null 2>&1; then
+            echo "a non-numeric option value exited 0"
+            exit 1
+          fi
+          echo "both bad invocations exited non-zero"

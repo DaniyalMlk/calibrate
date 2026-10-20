@@ -4,7 +4,7 @@ import { FIT_OPTIONS, runFit } from './fit.js';
 import { LINK_OPTIONS, runLink } from './link.js';
 import { MARGINAL_OPTIONS, runMarginal } from './marginal.js';
 import { MIXED_OPTIONS, runMixed } from './mixed.js';
-import { describeOptions, type OptionSpecs } from './options.js';
+import { describeOptions, describeWidth, type OptionSpecs } from './options.js';
 import { RECOVER_OPTIONS, runRecover } from './recover.js';
 import { STUDY_OPTIONS, runStudyCommand } from './study.js';
 
@@ -58,6 +58,23 @@ const COMMANDS: Readonly<Record<string, Command>> = {
   },
 };
 
+/** The names of every command, in the order the usage text lists them. */
+export const COMMAND_NAMES: readonly string[] = Object.keys(COMMANDS);
+
+/**
+ * The option specification of each command, keyed by command name.
+ *
+ * The help text is rendered from this, so anything checking the help can be
+ * written against the same source rather than against a list of commands and
+ * flags kept by hand somewhere else.
+ */
+export const COMMAND_OPTIONS: Readonly<Record<string, OptionSpecs>> = Object.fromEntries(
+  Object.entries(COMMANDS).map(([name, command]) => [name, command.options]),
+);
+
+/** The flags that ask for help rather than supplying a value. */
+const HELP_FLAGS: readonly string[] = ['-h', '--help', 'help'];
+
 function usage(): string {
   let out = 'calibrate — adaptive testing engine\n\nUsage:\n';
   for (const name of Object.keys(COMMANDS)) out += `  calibrate ${name} [options]\n`;
@@ -66,12 +83,31 @@ function usage(): string {
     out += `\n  ${name} — ${command.summary}\n${describeOptions(command.options)}\n`;
   }
   out += '\n  -h, --help          Show this message\n';
+  out += '\nRun `calibrate <command> --help` for one command on its own.\n';
   return out;
+}
+
+/**
+ * The help text for a single command.
+ *
+ * The whole-program usage lists eight commands and every option each of them
+ * takes, which is far more than someone who has already chosen a command wants
+ * to read. This is the same information narrowed to the one command asked about.
+ */
+export function commandUsage(name: string): string {
+  const command = COMMANDS[name];
+  if (command === undefined) throw new Error(`unknown command "${name}"`);
+  return (
+    `calibrate ${name} — ${command.summary}\n\n` +
+    `Usage:\n  calibrate ${name} [options]\n\nOptions:\n` +
+    `${describeOptions(command.options)}\n` +
+    `  ${'-h, --help'.padEnd(describeWidth(command.options))}Show this message\n`
+  );
 }
 
 export function main(argv: readonly string[]): number {
   const [name, ...rest] = argv;
-  if (name === undefined || name === '-h' || name === '--help' || name === 'help') {
+  if (name === undefined || HELP_FLAGS.includes(name)) {
     process.stdout.write(usage());
     return name === undefined ? 1 : 0;
   }
@@ -82,11 +118,22 @@ export function main(argv: readonly string[]): number {
     return 1;
   }
 
+  // Asking a command for help is a request, not a parse error. It has to be
+  // answered before the options are parsed at all, because the parser rejects
+  // any flag it does not recognise — which is the right behaviour for a typo
+  // in `--replications` and the wrong one for `--help`.
+  if (rest.some((argument) => HELP_FLAGS.includes(argument))) {
+    process.stdout.write(commandUsage(name));
+    return 0;
+  }
+
   try {
     command.run(rest);
     return 0;
   } catch (error) {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n\n${usage()}`);
+    process.stderr.write(
+      `${error instanceof Error ? error.message : String(error)}\n\n${commandUsage(name)}`,
+    );
     return 1;
   }
 }
