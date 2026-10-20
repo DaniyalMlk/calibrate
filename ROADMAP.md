@@ -165,4 +165,6 @@ tests that exercise the numerics against closed-form or published results.
       from an earlier configuration
 - [x] Packaging tests asserting the tarball's actual contents
 - [x] Tag-driven release workflow publishing over OIDC, with no stored credential
+- [x] An evidence table of what was checked and against what, recomputed by a
+      gate CI runs and pinned to the document in both directions
 - [ ] A published release on the registry
