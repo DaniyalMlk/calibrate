@@ -1,25 +1,54 @@
 {
-  "name": "calibrate",
+  "name": "calibrate-irt",
   "version": "0.1.0",
   "description": "An adaptive testing engine: item response theory, maximum-information item selection, and live ability estimation.",
   "type": "module",
   "license": "MIT",
+  "author": "Daniyal",
+  "keywords": [
+    "irt",
+    "item-response-theory",
+    "adaptive-testing",
+    "computerized-adaptive-testing",
+    "psychometrics",
+    "rasch",
+    "calibration",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DaniyalMlk/calibrate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DaniyalMlk/calibrate/issues"
+  },
+  "homepage": "https://github.com/DaniyalMlk/calibrate#readme",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.js"
     }
   },
+  "bin": {
+    "calibrate": "./dist/cli/main.js",
+    "calibrate-irt": "./dist/cli/main.js"
+  },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "web:build": "tsc -p tsconfig.web.json",
     "web": "tsc -p tsconfig.web.json && node web/serve.js",
@@ -39,8 +68,5 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  },
-  "bin": {
-    "calibrate": "./dist/cli/main.js"
   }
 }
