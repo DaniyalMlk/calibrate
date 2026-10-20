@@ -61,6 +61,17 @@ const COMMANDS: Readonly<Record<string, Command>> = {
 /** The names of every command, in the order the usage text lists them. */
 export const COMMAND_NAMES: readonly string[] = Object.keys(COMMANDS);
 
+/**
+ * The option specification of each command, keyed by command name.
+ *
+ * The help text is rendered from this, so anything checking the help can be
+ * written against the same source rather than against a list of commands and
+ * flags kept by hand somewhere else.
+ */
+export const COMMAND_OPTIONS: Readonly<Record<string, OptionSpecs>> = Object.fromEntries(
+  Object.entries(COMMANDS).map(([name, command]) => [name, command.options]),
+);
+
 /** The flags that ask for help rather than supplying a value. */
 const HELP_FLAGS: readonly string[] = ['-h', '--help', 'help'];
 

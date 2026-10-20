@@ -2,7 +2,7 @@ import { rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { main } from '../src/cli/run.js';
+import { COMMAND_NAMES, COMMAND_OPTIONS, main } from '../src/cli/run.js';
 
 function capture(argv: readonly string[]): { code: number; out: string; err: string } {
   let out = '';
@@ -510,4 +510,82 @@ describe('cli mml, the scoring report', () => {
     expect(out).not.toContain('The form as a whole');
     expect(out).toContain('Marginal log-likelihood of each solution');
   });
+});
+
+describe('cli: per-command help', () => {
+  // Enumerated from the command table rather than written out here, so a
+  // command added later is covered without anyone remembering to add it.
+  it('has a command table the tests can enumerate', () => {
+    expect(COMMAND_NAMES.length).toBeGreaterThan(5);
+    expect(COMMAND_NAMES).toContain('demo');
+  });
+
+  for (const name of COMMAND_NAMES) {
+    describe(name, () => {
+      it('answers --help without running anything', () => {
+        const { code, out, err } = capture([name, '--help']);
+        expect(code).toBe(0);
+        expect(err).toBe('');
+        expect(out).toContain(`calibrate ${name} —`);
+        expect(out).toContain('Usage:');
+      });
+
+      it('answers -h the same way', () => {
+        expect(capture([name, '-h']).out).toBe(capture([name, '--help']).out);
+      });
+
+      it('answers help asked for after another flag', () => {
+        const { code, out } = capture([name, '--seed', '1', '--help']);
+        expect(code).toBe(0);
+        expect(out).toContain(`calibrate ${name} —`);
+      });
+
+      it('lists every option the command declares, with its default', () => {
+        const { out } = capture([name, '--help']);
+        for (const [option, spec] of Object.entries(COMMAND_OPTIONS[name] ?? {})) {
+          expect(out).toContain(`--${option} <${spec.kind}>`);
+          expect(out).toContain(`[${spec.fallback}]`);
+        }
+      });
+
+      it('lists only its own options, not another command’s', () => {
+        const { out } = capture([name, '--help']);
+        const mine = new Set(Object.keys(COMMAND_OPTIONS[name] ?? {}));
+        for (const other of COMMAND_NAMES) {
+          if (other === name) continue;
+          for (const option of Object.keys(COMMAND_OPTIONS[other] ?? {})) {
+            if (mine.has(option)) continue;
+            expect(out).not.toContain(`--${option} <`);
+          }
+        }
+      });
+
+      it('puts the help line in the same column as the declared options', () => {
+        const { out } = capture([name, '--help']);
+        // Every option line is two spaces, the flag, padding, then the
+        // description. What has to agree across them is the column the
+        // description starts in — including on the `-h, --help` line, which
+        // no command declares and every command answers.
+        const columns = out
+          .split('\n')
+          .filter((line) => /^ {2}-{1,2}\w/.test(line))
+          .map((line) => {
+            // `-h, --help` has a space inside it, so the flag is everything up
+            // to the first run of two or more spaces, not up to the first one.
+            const padded = /^(.*?) {2,}\S/.exec(line.slice(2));
+            return padded === null ? -1 : 2 + padded[0].length - 1;
+          });
+        expect(columns.length).toBeGreaterThan(1);
+        expect(new Set(columns).size).toBe(1);
+      });
+
+      it('reports a bad option against this command alone', () => {
+        const { code, err } = capture([name, '--definitelynotaflag', '1']);
+        expect(code).toBe(1);
+        expect(err).toContain('unknown option "--definitelynotaflag"');
+        expect(err).toContain(`calibrate ${name} —`);
+        expect(err).not.toContain('\nCommands:\n');
+      });
+    });
+  }
 });
