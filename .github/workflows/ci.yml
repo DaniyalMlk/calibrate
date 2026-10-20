@@ -35,6 +35,48 @@ jobs:
       - name: Test
         run: npm test
 
+  package:
+    name: The tarball installs and runs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Pack
+        run: npm pack
+      # The packaging tests assert what the tarball contains. This asserts
+      # that installing it works, which is a different question: it exercises
+      # resolution through `exports` and the bin shims, neither of which
+      # exists inside the repository.
+      - name: Install the tarball into a bare project and use it
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          npm init -y > /dev/null
+          npm install "$GITHUB_WORKSPACE"/calibrate-irt-*.tgz
+          node --input-type=module -e "
+            import * as calibrate from 'calibrate-irt';
+            const names = Object.keys(calibrate);
+            if (names.length < 100) {
+              throw new Error('the package exports ' + names.length + ' names');
+            }
+            // One number end to end is worth more than a count of exports:
+            // a^2/4 is the peak information of a 2PL item, so this is
+            // arithmetic the installed build either gets right or does not.
+            const peak = calibrate.itemInformation(calibrate.twoPL(1.5, 0.5), 0.5);
+            if (Math.abs(peak - 0.5625) > 1e-12) {
+              throw new Error('peak information came out as ' + peak);
+            }
+            console.log('imported ' + names.length + ' exports');
+          "
+          ./node_modules/.bin/calibrate --help > /dev/null
+          ./node_modules/.bin/calibrate-irt demo --bank 60 --max 8 > /dev/null
+          echo "both bin names resolve and the engine runs"
+
   commands:
     name: Every command answers for itself
     runs-on: ubuntu-latest

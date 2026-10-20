@@ -4,8 +4,11 @@
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
+    // Both kinds of map name the .ts sources, and `files` ships dist alone.
+    // A map pointing at a file the consumer does not have is worse than no
+    // map at all: an editor follows it and lands on nothing.
+    "declarationMap": false,
+    "sourceMap": false
   },
   "include": ["src"]
 }

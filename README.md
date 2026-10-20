@@ -11,13 +11,13 @@ policies and the stopping rules — as a dependency-free TypeScript library.
 
 ## Status
 
-Phases 1 to 15 of [ROADMAP.md](ROADMAP.md) are complete. An adaptive test runs
-end to end — `npm run demo` administers one against a synthetic bank and prints
-the transcript — `npm run study` compares selection policies over a simulated
-population, `npm run fit` estimates item parameters from a matrix of responses,
-and `npm run web` serves a browser interface that runs a session live and draws
-the posterior, the response curves, the information curves and the bank's
-coverage as it goes.
+Phases 1 to 16 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
+An adaptive test runs end to end — `npm run demo` administers one against a
+synthetic bank and prints the transcript — `npm run study` compares selection
+policies over a simulated population, `npm run fit` estimates item parameters
+from a matrix of responses, and `npm run web` serves a browser interface that
+runs a session live and draws the posterior, the response curves, the
+information curves and the bank's coverage as it goes.
 
 Items may be scored in two categories or in many. The graded response, partial
 credit and generalized partial credit models sit alongside the dichotomous ones,
@@ -43,7 +43,25 @@ what it found beside what was actually planted — then runs the same data throu
 logistic regression and Raju's area measures, which do not pool and can tell a
 uniformly harder item from one whose response curves cross.
 
-## Install and run
+## Installing
+
+```bash
+npm install calibrate-irt
+```
+
+The package is `calibrate-irt`; `calibrate` on the registry is an unrelated
+project. The import name follows the package, and the command line is installed
+under both names:
+
+```bash
+npx calibrate-irt demo      # or `calibrate demo`, once installed
+calibrate <command> --help  # the options of one command, not all eight
+```
+
+It has no runtime dependencies, ships its own type declarations, and needs
+Node 20.19 or newer.
+
+## Working on it
 
 ```bash
 npm install
@@ -73,7 +91,7 @@ import {
   testInformation,
   threePL,
   twoPL,
-} from 'calibrate';
+} from 'calibrate-irt';
 
 const item = twoPL(1.5, 0.5); // discrimination 1.5, difficulty 0.5
 probabilityCorrect(item, 1.0); // 0.6792 — a candidate one logit up
@@ -123,7 +141,7 @@ import {
   graded,
   partialCredit,
   polytomousInformation,
-} from 'calibrate';
+} from 'calibrate-irt';
 
 const essay = graded(1.2, [-1.5, -0.2, 0.9]); // four rubric levels
 categoryProbabilities(essay, 0.4); // [0.093, 0.235, 0.318, 0.354] — sums to one
@@ -170,7 +188,7 @@ import {
   testCharacteristicCurve,
   testInformationOf,
   twoPL,
-} from 'calibrate';
+} from 'calibrate-irt';
 
 const form = [
   makeItem('mc-1', twoPL(1.4, 0.2)),
@@ -198,7 +216,7 @@ asymptote at any ability.
 ### Estimating ability
 
 ```ts
-import { createRng, estimateMle, makeItem, simulateResponses, twoPL } from 'calibrate';
+import { createRng, estimateMle, makeItem, simulateResponses, twoPL } from 'calibrate-irt';
 
 const bank = [-2, -1, 0, 1, 2].map((b, i) => makeItem(`i-${i}`, twoPL(1.2, b)));
 const responses = simulateResponses(bank, 0.8, createRng(42));
@@ -227,7 +245,7 @@ an adaptive test spends its early items: short patterns, extreme candidates.
 | `estimateWle` | yes | no | reporting a final score |
 
 ```ts
-import { estimateEap, estimateMap, estimateWle, normalPrior } from 'calibrate';
+import { estimateEap, estimateMap, estimateWle, normalPrior } from 'calibrate-irt';
 
 estimateEap(responses); // posterior mean, with posteriorSd
 estimateMap(responses, { prior: normalPrior(0, 1.2) }); // posterior mode
@@ -264,7 +282,7 @@ import {
   contentBalanced,
   maximumInformationSelector,
   randomesque,
-} from 'calibrate';
+} from 'calibrate-irt';
 
 const selector = contentBalanced(
   randomesque(maximumInformationSelector(), 5),
@@ -330,7 +348,7 @@ import {
   ItemPool,
   maximumInformationSelector,
   precisionTarget,
-} from 'calibrate';
+} from 'calibrate-irt';
 
 const session = new AdaptiveSession({
   pool: new ItemPool(items),
@@ -362,7 +380,7 @@ category `u` from `[1 - P, P]` picks out exactly the term `u log P + (1 - u) log
 keeps — so every dichotomous result is unchanged.
 
 ```ts
-import { estimateEap, estimateMle, estimateWle } from 'calibrate';
+import { estimateEap, estimateMle, estimateWle } from 'calibrate-irt';
 
 const pattern = [
   { item: mc1, response: 1 },           // a binary item
@@ -552,7 +570,7 @@ graphs-0004           0.085   2.245   0.131   1.00   0.908   0.772   -1.03
 In code:
 
 ```ts
-import { calibrate, itemFit, parseResponseCsv, toItems } from 'calibrate';
+import { calibrate, itemFit, parseResponseCsv, toItems } from 'calibrate-irt';
 
 const matrix = parseResponseCsv(csv, { index: true });
 const result = calibrate(matrix, { model: 'rasch' });
@@ -653,7 +671,7 @@ with their spread inflated by 4.8 per cent where the theoretical stretch for a
 In code:
 
 ```ts
-import { marginalCalibrate, toMarginalItems } from 'calibrate';
+import { marginalCalibrate, toMarginalItems } from 'calibrate-irt';
 
 const result = marginalCalibrate(matrix, { model: 'rasch' });
 
@@ -756,7 +774,7 @@ The form as a whole, on the fitted population:
 ```
 
 ```ts
-import { conversionTable, marginalReliability, marginalScoreDistribution } from 'calibrate';
+import { conversionTable, marginalReliability, marginalScoreDistribution } from 'calibrate-irt';
 
 conversionTable(items, population);        // ability and error for every total
 marginalScoreDistribution(items, population); // the totals a cohort will produce
@@ -836,7 +854,7 @@ something true about bank security, and none of them describes the shape of the
 distribution.
 
 ```ts
-import { exposureConcentration, exposureRatesFromIds } from 'calibrate';
+import { exposureConcentration, exposureRatesFromIds } from 'calibrate-irt';
 
 const rates = exposureRatesFromIds(sessions.map((session) => session.itemIds));
 const shape = exposureConcentration(bank.length, rates);
@@ -879,7 +897,7 @@ import {
   stockingLord,
   transformAbility,
   transformBank,
-} from 'calibrate';
+} from 'calibrate-irt';
 
 // The same anchor items, calibrated twice on different samples.
 const pairs = commonItems(thisYearsBank, lastYearsBank);
@@ -950,7 +968,7 @@ linking they are within a tenth of a point.
 ### Where a bank cannot measure
 
 ```ts
-import { bankHealth } from 'calibrate';
+import { bankHealth } from 'calibrate-irt';
 
 const health = bankHealth(items, { target: 0.3 });
 health.gaps; // [{ from: 1.75, to: 3.00, worstStandardError: 0.48 }]
@@ -975,7 +993,7 @@ session view wants the whole distribution: the shape of what is believed, and
 how much of it lies where.
 
 ```ts
-import { credibleInterval, posteriorDensity, posteriorMassBetween } from 'calibrate';
+import { credibleInterval, posteriorDensity, posteriorMassBetween } from 'calibrate-irt';
 
 const posterior = posteriorDensity(responses); // even grid, normalised
 posterior.mean; // 0.927
@@ -1012,7 +1030,7 @@ engine cannot answer: does this item work the same way for two groups of
 candidates who are equally able?
 
 ```ts
-import { purifiedScan, rankByEffect, scanBank } from 'calibrate';
+import { purifiedScan, rankByEffect, scanBank } from 'calibrate-irt';
 
 const groups = candidates.map((c) => (c.group === 'A' ? 'reference' : 'focal'));
 
@@ -1121,7 +1139,7 @@ item is uniformly harder for one group or harder for one group only at one end
 of the scale. Regression can, because the interaction is a column in the model.
 
 ```ts
-import { logisticDif, matchedSample } from 'calibrate';
+import { logisticDif, matchedSample } from 'calibrate-irt';
 
 const { observations } = matchedSample(responses, groups, item, { anchor: pure.anchor });
 const result = logisticDif(observations);
@@ -1171,7 +1189,7 @@ each group, put the two calibrations on one metric, and measure the area between
 the response functions.
 
 ```ts
-import { areaScan, rajuArea, rankByArea } from 'calibrate';
+import { areaScan, rajuArea, rankByArea } from 'calibrate-irt';
 
 const area = rajuArea(referenceCalibration, focalCalibration);
 area.signed;           // the uniform component; cancels where the curves cross

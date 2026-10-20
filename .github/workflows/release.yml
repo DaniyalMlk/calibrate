@@ -1,0 +1,99 @@
+name: release
+
+# Tag-driven, and the tag is the only thing that triggers it. Pushing v0.1.0
+# publishes 0.1.0; nothing else publishes anything.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: The tag agrees with the manifest, and the tarball works
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install
+        run: npm ci
+      # A tag that disagrees with package.json would publish a version nobody
+      # asked for, under a number the repository does not record. The registry
+      # does not accept a replacement for a version already taken, so this has
+      # to fail here rather than after.
+      - name: The tag and the manifest version are the same
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared="$(node -p "require('./package.json').version")"
+          if [ "$tagged" != "$declared" ]; then
+            echo "tag $GITHUB_REF_NAME says $tagged, package.json says $declared"
+            exit 1
+          fi
+          echo "publishing $declared"
+      - name: Type check
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Pack
+        run: npm pack
+      - name: The tarball installs, imports and runs
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          npm init -y > /dev/null
+          npm install "$GITHUB_WORKSPACE"/calibrate-irt-*.tgz
+          node --input-type=module -e "
+            import * as calibrate from 'calibrate-irt';
+            const names = Object.keys(calibrate);
+            if (names.length < 100) {
+              throw new Error('the package exports ' + names.length + ' names');
+            }
+            // Exercising one number end to end is worth more than counting
+            // exports: a^2/4 is the peak information of a 2PL item, so this
+            // is arithmetic the installed build either gets right or does not.
+            const item = calibrate.twoPL(1.5, 0.5);
+            const peak = calibrate.itemInformation(item, 0.5);
+            if (Math.abs(peak - 0.5625) > 1e-12) {
+              throw new Error('peak information came out as ' + peak);
+            }
+            console.log('imported ' + names.length + ' exports');
+          "
+          ./node_modules/.bin/calibrate --help > /dev/null
+          ./node_modules/.bin/calibrate-irt demo --bank 60 --max 8 > /dev/null
+          echo "both bin names resolve and the engine runs"
+
+  publish:
+    name: Publish to npm
+    needs: verify
+    runs-on: ubuntu-latest
+    # id-token is what the registry authenticates the workflow by, and it is
+    # the only permission this job holds. No npm token is stored, printed or
+    # committed anywhere: trusted publishing exchanges this short-lived OIDC
+    # token for the right to publish, and provenance is attached automatically
+    # when the repository is public.
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      # Trusted publishing needs npm 11.5.1 or newer, and the npm bundled with
+      # Node 22 is older than that, so the job upgrades it rather than
+      # depending on whatever the image happens to ship.
+      - name: Use an npm that can publish over OIDC
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
+      - name: Install
+        run: npm ci
+      # prepack builds, so the published tarball is built here rather than
+      # being whatever a working copy had in dist.
+      - name: Publish
+        run: npm publish
