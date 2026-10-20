@@ -38,6 +38,8 @@ import {
   probabilityCorrect,
 } from '../src/models/response.js';
 import { estimateMle } from '../src/estimation/mle.js';
+import { personFit } from '../src/estimation/person.js';
+import { simulateResponses } from '../src/simulation/respondent.js';
 import { scoreDistribution } from '../src/scoring/summed.js';
 import { integrateArea, rajuArea } from '../src/dif/area.js';
 import { commonItems } from '../src/linking/common.js';
@@ -453,6 +455,61 @@ function spreadRatio(
   return Math.sqrt(variance(estimates) / variance(aligned));
 }
 
+
+/**
+ * The null distribution of the person-fit statistic, before and after the
+ * correction for an estimated ability.
+ *
+ * Three numbers, because the claim has three parts and checking only the last
+ * would pass against a correction applied to a statistic that never needed
+ * one: `lz` is standard normal at a known ability, too narrow once the ability
+ * is estimated from the same responses, and brought back by `lzStar`.
+ */
+function personFitCalibration(): Check {
+  const form: Item[] = linspace(-2, 2, 40).map((b, index) =>
+    makeItem(`p${index}`, twoPL(0.7 + ((index * 7) % 40) / 40, b)),
+  );
+  const rng = createRng(20260101);
+  const atTruth: number[] = [];
+  const atEstimate: number[] = [];
+  const corrected: number[] = [];
+
+  for (let person = 0; person < 3000; person += 1) {
+    const theta = rng.nextNormal();
+    const responses = simulateResponses(form, theta, rng);
+    const estimate = estimateMle(responses);
+    if (!estimate.converged) continue;
+    atTruth.push(personFit(responses, theta).lz);
+    const fit = personFit(responses, estimate.theta);
+    atEstimate.push(fit.lz);
+    corrected.push(fit.lzStar as number);
+  }
+
+  const sd = (values: readonly number[]): number => Math.sqrt(variance(values));
+  const known = sd(atTruth);
+  const estimated = sd(atEstimate);
+  const fixed = sd(corrected);
+  const ok =
+    Math.abs(known - 1) < 0.05 && estimated < 0.95 && Math.abs(fixed - 1) < Math.abs(estimated - 1);
+
+  return {
+    label: 'The person-fit statistic on a 40-item form, at a known ability and an estimated one',
+    result:
+      `standard deviation ${known.toFixed(2)} when the ability is known, ` +
+      `${estimated.toFixed(2)} when it is estimated from the same responses, and ` +
+      `${fixed.toFixed(2)} once corrected; over ${atTruth.length.toLocaleString('en-GB')} ` +
+      'model-conforming candidates',
+    ok,
+    ...(ok
+      ? {}
+      : {
+          complaint:
+            `known ${known}, estimated ${estimated}, corrected ${fixed} — the middle one ` +
+            'should be visibly below one and the last should be nearer to it',
+        }),
+  };
+}
+
 /** Every row of the evidence table, in the order the README prints them. */
 export function measure(): readonly Check[] {
   return [
@@ -465,6 +522,7 @@ export function measure(): readonly Check[] {
     areaAgainstQuadrature(),
     chiSquareAgainstTables(),
     ...jointBias(),
+    personFitCalibration(),
   ];
 }
 

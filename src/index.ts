@@ -162,6 +162,14 @@ export {
 } from './estimation/wle.js';
 
 export {
+  personFit,
+  scanPersons,
+  type FlaggedPerson,
+  type PersonFit,
+  type PersonScanOptions,
+} from './estimation/person.js';
+
+export {
   credibleInterval,
   posteriorCdf,
   posteriorDensity,
@@ -491,6 +499,18 @@ export {
   type DifSimulation,
   type DifSimulationOptions,
 } from './simulation/dif.js';
+
+export {
+  detectionRates,
+  simulateCandidate,
+  simulateSitting,
+  type Aberrance,
+  type AberranceSpec,
+  type DetectionRates,
+  type SimulatedCandidate,
+  type Sitting,
+  type SittingOptions,
+} from './simulation/aberrance.js';
 
 export {
   invertMatrix,

@@ -3,6 +3,7 @@ import { DIF_OPTIONS, runDif } from './dif.js';
 import { FIT_OPTIONS, runFit } from './fit.js';
 import { LINK_OPTIONS, runLink } from './link.js';
 import { MARGINAL_OPTIONS, runMarginal } from './marginal.js';
+import { MISFIT_OPTIONS, runMisfit } from './misfit.js';
 import { MIXED_OPTIONS, runMixed } from './mixed.js';
 import { describeOptions, describeWidth, type OptionSpecs } from './options.js';
 import { RECOVER_OPTIONS, runRecover } from './recover.js';
@@ -55,6 +56,11 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     summary: 'Scan a two-group administration for items that behave differently at equal ability',
     options: DIF_OPTIONS,
     run: runDif,
+  },
+  misfit: {
+    summary: 'Scan a simulated sitting for candidates whose pattern does not fit the model',
+    options: MISFIT_OPTIONS,
+    run: runMisfit,
   },
 };
 
