@@ -53,6 +53,15 @@ jobs:
       - name: Recompute the evidence table
         run: npm run evidence
 
+      # The site renders the same measurement. A generator that cannot run is
+      # a front page that silently stops being republished, and nothing on a
+      # branch would otherwise say so.
+      - name: Compile the interface
+        run: npm run web:build
+
+      - name: The site builds
+        run: npm run docs
+
   package:
     name: The tarball installs and runs
     runs-on: ubuntu-latest
