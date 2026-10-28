@@ -180,3 +180,28 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Departures planted on purpose: preknowledge, carelessness, guessing
 - [x] Detection scored against the key, with the false positive rate beside it
 - [x] Command-line entry point
+
+## Phase 18 — A front page, generated from the engine
+
+- [x] A generated site, not a written one: the generator returns strings and
+      touches no filesystem, so the tests call it directly and one thin entry
+      point writes `site/`
+- [x] The interface on it, built at publish time and importing the engine from
+      the same compiled source the package ships. No bundler is involved,
+      because there is none to involve: `tsc` emits ES modules whose import
+      specifiers the browser resolves, which is why this can be published from
+      a static site at all
+- [x] Every figure from `scripts/evidence.ts`, including the two headline ones,
+      which are read back out of the row they summarise rather than typed
+      beside it — a headline is the figure most likely to be written once and
+      left
+- [x] Counts read off the command table and the package's own export list
+- [x] A test that fails in both directions, and a page that is refused if any
+      row of the gate is unhappy, so a failing measurement cannot be published
+      as a result
+- [x] The suite size stated below and checked: exactly on the file count,
+      within a quarter on the test count, because a suite cannot count itself
+      from inside
+
+1157 tests across 48 files, typecheck clean.
+
