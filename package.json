@@ -63,7 +63,8 @@
     "link": "tsx src/cli/main.ts link",
     "dif": "tsx src/cli/main.ts dif",
     "misfit": "tsx src/cli/main.ts misfit",
-    "mml": "tsx src/cli/main.ts mml"
+    "mml": "tsx src/cli/main.ts mml",
+    "docs": "tsx docs/build-site.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
