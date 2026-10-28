@@ -9,6 +9,12 @@ answer, and stops when the estimate is precise enough. `calibrate` implements
 that loop — the response models, the ability estimators, the item-selection
 policies and the stopping rules — as a dependency-free TypeScript library.
 
+**[daniyalmlk.github.io/calibrate](https://daniyalmlk.github.io/calibrate/)** —
+the front page, with the adaptive test running on it. Not a recording: the
+session imports the engine from the same compiled source the package ships, so
+what it believes about you is what the library believes. Every figure on that
+page comes from the same gate as the table below.
+
 ## Status
 
 Phases 1 to 17 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
