@@ -1,4 +1,5 @@
-import { isPolytomous, itemLocation, type AnyItem } from '../models/mixed.js';
+import { metricScale } from '../models/item.js';
+import { isPolytomous, itemLocation, metricOf, type AnyItem } from '../models/mixed.js';
 
 /**
  * One item calibrated twice, on two different scales.
@@ -112,7 +113,24 @@ export function locationParameters(items: readonly AnyItem[]): number[] {
   return locations;
 }
 
-/** The discrimination parameters a moment method should average over. */
-export function discriminationParameters(items: readonly AnyItem[]): number[] {
-  return items.map((item) => item.parameters.a);
+/**
+ * The slope coefficients a moment method should average over.
+ *
+ * Not the raw discrimination. What a linking slope is about is the coefficient
+ * multiplying ability in the exponent, which is `D * a` — and `D` is a property
+ * of the metric the calibration was run on, not of the item. Writing the same
+ * item on the normal metric rather than the logistic one divides its `a` by
+ * 1.702 without changing its curve by anything, so a ratio of raw
+ * discriminations across two calibrations that chose different conventions
+ * reports their difference of convention as if it were a difference of scale.
+ *
+ * Equating the exponents of one item written on two scales, with
+ * `theta* = A theta + B`, gives `A = (D_source a_source) / (D_target a_target)`:
+ * the metric belongs inside the ratio. Where both calibrations are on the same
+ * metric — the ordinary case — the constant cancels and this is the raw
+ * discrimination times a number that divides out, which is why the distinction
+ * is invisible until an anchor spans two metrics.
+ */
+export function slopeCoefficients(items: readonly AnyItem[]): number[] {
+  return items.map((item) => metricScale(metricOf(item)) * item.parameters.a);
 }
