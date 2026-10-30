@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { linspace, mean } from '../src/core/numeric.js';
+import { linspace, mean, NORMAL_METRIC_SCALE } from '../src/core/numeric.js';
 import { normalGridRule } from '../src/core/quadrature.js';
 import { createRng } from '../src/core/random.js';
 import { calibrate, toItems } from '../src/calibration/jmle.js';
-import { makeItem, threePL, twoPL } from '../src/models/item.js';
+import { makeItem, threePL, twoPL, type Item } from '../src/models/item.js';
 import {
   expectedScoreOf,
   informationOf,
@@ -495,5 +495,54 @@ describe('linking errors', () => {
   it('rejects an unknown method name', () => {
     const pairs = commonItems([item], [item]);
     expect(() => link(pairs, 'nearest-neighbour' as never)).toThrow(/unknown linking method/);
+  });
+});
+
+describe('an anchor calibrated on two different metrics', () => {
+  // The same five curves, written twice: once on the normal metric and once on
+  // the logistic one with the discrimination multiplied by D. Nothing about the
+  // items differs except the convention their exponent is written in, so the
+  // transformation relating the two calibrations is the identity and every
+  // method has the same known right answer.
+  const SPEC = [
+    { id: 'i1', a: 0.7, b: -1.5 },
+    { id: 'i2', a: 1.1, b: -0.5 },
+    { id: 'i3', a: 0.9, b: 0.2 },
+    { id: 'i4', a: 1.4, b: 1.0 },
+    { id: 'i5', a: 0.8, b: 1.6 },
+  ];
+  const onNormal = SPEC.map((spec) => makeItem(spec.id, twoPL(spec.a, spec.b, 'normal')));
+  const onLogistic = SPEC.map((spec) =>
+    makeItem(spec.id, twoPL(NORMAL_METRIC_SCALE * spec.a, spec.b, 'logistic')),
+  );
+  const pairs = commonItems(onNormal, onLogistic);
+
+  it('is the same five curves on both sides', () => {
+    for (const theta of GRID) {
+      for (let index = 0; index < SPEC.length; index += 1) {
+        expect(probabilityCorrect((onNormal[index] as Item).parameters, theta)).toBe(
+          probabilityCorrect((onLogistic[index] as Item).parameters, theta),
+        );
+      }
+    }
+  });
+
+  it('recovers the identity under all four methods', () => {
+    for (const result of linkAll(pairs)) {
+      expect(result.transform.slope).toBeCloseTo(1, 12);
+      expect(result.transform.intercept).toBeCloseTo(0, 12);
+    }
+  });
+
+  it('would be wrong by the ratio of the two metrics if the raw discriminations were averaged', () => {
+    // What the ratio is about is the slope of the exponent, D * a, and the two
+    // sides spell that slope with different values of D. Averaging the raw `a`
+    // instead reports 1 / 1.702 — a coefficient the criterion methods, which
+    // see only the curves, contradict outright.
+    const rawRatio =
+      mean(pairs.map((pair) => (pair.source as Item).parameters.a)) /
+      mean(pairs.map((pair) => (pair.target as Item).parameters.a));
+    expect(rawRatio).toBeCloseTo(1 / NORMAL_METRIC_SCALE, 12);
+    expect(Math.abs(meanMean(pairs).transform.slope - rawRatio)).toBeGreaterThan(0.4);
   });
 });
