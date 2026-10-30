@@ -5,8 +5,18 @@ import { LOGISTIC_METRIC_SCALE, NORMAL_METRIC_SCALE, requireFinite } from '../co
  *
  * Item parameters are only meaningful together with the metric they were
  * calibrated on: the same `a` means a steeper curve under `normal` than under
- * `logistic`. Carrying the metric on the item makes a mismatched bank a type
- * error rather than a silently wrong score.
+ * `logistic`. Carrying the metric on the item rather than configuring it once
+ * for the engine means every function that needs the scaling reads it from the
+ * item in front of it, so a bank holding both conventions is scored correctly
+ * item by item and a quantity aggregated across items — a test information, a
+ * linking slope — is aggregated over comparable numbers.
+ *
+ * What it does not do is make a mismatched bank a type error. Both metrics
+ * inhabit the same type, deliberately: refusing to hold a bank assembled from
+ * two calibrations would be refusing the situation this field exists for. The
+ * one place a mismatch is genuinely undefined rather than merely inconvenient
+ * is an area measure between two calibrations of one item, and `rajuArea` says
+ * so there.
  */
 export type Metric = 'logistic' | 'normal';
 
