@@ -1040,6 +1040,37 @@ Five score points is the size of the problem: two candidates of identical
 ability, one sitting each form, would have been reported five points apart. After
 linking they are within a tenth of a point.
 
+#### When the two calibrations did not choose the same metric
+
+Item parameters mean nothing without the metric they were written on. The same
+curve is `a = 0.7` on the normal metric, where the exponent carries a factor of
+1.702, and `a = 1.1914` on the logistic metric, where it does not; both describe
+one item that behaves one way. Two calibrations of one anchor, run years apart or
+by different vendors, need not have made the same choice.
+
+The slope a linking coefficient reports is the ratio of the exponents' leading
+coefficients, `D a`, and not of the discriminations alone. Written out over the
+same curves on the two metrics, where the right answer is the identity, that is
+the difference between
+
+```
+mean-mean          1.0000   0.0000
+mean-sigma         1.0000   0.0000
+haebara            1.0000   0.0000
+stocking-lord      1.0000   0.0000
+```
+
+and a mean/mean slope of 0.5875, which is 1/1.702 and nothing else. Mean/sigma
+reads locations, which the metric does not touch; Haebara and Stocking-Lord read
+curves, which the metric does not change. Only mean/mean reads the one parameter
+the convention moves, and on a single-metric anchor the factor cancels from its
+ratio — so the mistake is invisible on every anchor that does not span two
+metrics, which is most of them.
+
+What is *not* defined across two metrics is an area between two calibrations of
+one item: the closed form is a single expression in both discriminations, and
+`rajuArea` says so rather than guessing.
+
 ### Where a bank cannot measure
 
 ```ts

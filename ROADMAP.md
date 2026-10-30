@@ -205,3 +205,12 @@ tests that exercise the numerics against closed-form or published results.
 
 1157 tests across 48 files, typecheck clean.
 
+## Phase 19 — The metric an anchor was calibrated on
+
+- [x] The moment methods compare the slope of the exponent rather than the
+      discrimination, so an anchor whose two calibrations chose different
+      metrics links correctly instead of reporting the convention as scale
+- [x] A cross-metric anchor in the evidence gate, where the transformation is
+      the identity and the other three methods are the reference
+- [x] The identity rows that could not see the metric — peak information
+      against its closed form — measured on both metrics
