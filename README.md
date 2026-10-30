@@ -1067,9 +1067,12 @@ the convention moves, and on a single-metric anchor the factor cancels from its
 ratio — so the mistake is invisible on every anchor that does not span two
 metrics, which is most of them.
 
-What is *not* defined across two metrics is an area between two calibrations of
-one item: the closed form is a single expression in both discriminations, and
-`rajuArea` says so rather than guessing.
+One thing still insists on a common metric: `rajuArea`, whose closed form is
+written as a single expression in both discriminations and so reads one scaling
+for the pair. It refuses a mismatched pair rather than applying the wrong
+scaling to one of them. The area itself is perfectly well defined — it is an
+area between two functions of ability, and how each was parameterised does not
+enter — so this is a limitation of the expression, not of the measure.
 
 ### Where a bank cannot measure
 

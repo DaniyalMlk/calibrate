@@ -13,10 +13,10 @@ import { LOGISTIC_METRIC_SCALE, NORMAL_METRIC_SCALE, requireFinite } from '../co
  *
  * What it does not do is make a mismatched bank a type error. Both metrics
  * inhabit the same type, deliberately: refusing to hold a bank assembled from
- * two calibrations would be refusing the situation this field exists for. The
- * one place a mismatch is genuinely undefined rather than merely inconvenient
- * is an area measure between two calibrations of one item, and `rajuArea` says
- * so there.
+ * two calibrations would be refusing the situation this field exists for. One
+ * function still insists on a common metric — `rajuArea`, whose closed form
+ * reads a single scaling for the pair of items it is given — and it refuses a
+ * mismatched pair rather than applying one item's scaling to the other.
  */
 export type Metric = 'logistic' | 'normal';
 
