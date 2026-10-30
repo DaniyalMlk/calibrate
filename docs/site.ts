@@ -131,6 +131,7 @@ function landing(checks: readonly Check[], size: Counts): string {
   };
   const peak = find('Peak information');
   const linking = find('linking methods');
+  const crossMetric = find('calibrated once on each metric');
 
   // Pulled out of the gate's own rendered result rather than typed beside it.
   // A headline figure is the one most likely to be written once and left, so
@@ -232,7 +233,7 @@ function landing(checks: readonly Check[], size: Counts): string {
   ${evidenceTable(checks)}
   <p class="aside"><strong>An identity says zero, not
   &ldquo;small&rdquo;.</strong> The peak of a two-parameter item&rsquo;s
-  information is ${code('`a&sup2; / 4`')} by construction, and a two-category
+  information is ${code('`(D a)&sup2; / 4`')} by construction, and a two-category
   graded item <em>is</em> the two-parameter model &mdash; the polytomous code
   path reduces to the same arithmetic &mdash; so the difference is exactly
   nothing and the row says so. ${esc(peak.result)}. Quoting an identity as a
@@ -251,6 +252,16 @@ function landing(checks: readonly Check[], size: Counts): string {
   A calculation checked only against itself is consistent, and consistency is
   not correctness &mdash; an estimator with the wrong convention is perfectly
   self-consistent.</p>
+  <p class="aside"><strong>One row exists to catch a convention.</strong> An
+  item's parameters mean nothing without the metric they were calibrated on,
+  so the same curve can be written two ways, and two calibrations of one
+  anchor need not have chosen the same way. Written out twice like that, the
+  transformation between them is the identity, and the four methods agree it
+  is (${esc(crossMetric.result)}). Averaging the discriminations without the
+  metric in them instead puts the slope at 1/1.702 &mdash; a wrong answer that
+  nothing inside the moment methods can contradict, which is why the row
+  measures all four of them against each other rather than one of them against
+  a tolerance.</p>
 </section>
 
 <section id="install" class="install col--wide">

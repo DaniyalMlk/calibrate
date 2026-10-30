@@ -62,12 +62,13 @@ against what. Here is what was measured. Every figure is produced by
 
 | Check | Result |
 | --- | --- |
-| Peak information of a 2PL item against the closed form `a^2 / 4` | 0, over 741 parameter sets |
+| Peak information of a 2PL item against the closed form `(D a)^2 / 4`, on both metrics | 0, over 1,482 parameter sets |
 | A two-category graded item against the 2PL, and two-category partial credit against Rasch | 0, over 33,048 evaluations |
 | Category probabilities summing to one, graded and partial credit | below 1e-14, over 405 evaluations |
 | The total-score distribution by recursion against enumerating every pattern | below 1e-14, over 32,768 patterns at 7 abilities |
 | Two patterns with the same total score, scored under Rasch and under the 2PL | the same ability over all 1,024 patterns, to the root-finder's tolerance and no further: below 1e-7 at its default of 1e-8, below 1e-14 when that is tightened to 1e-14. Under the 2PL the same comparison spans 2.31 logits |
 | Four linking methods recovering a transformation applied on purpose (A 1.35, B -0.42) | below 1e-14, in both coefficients, 30 common items |
+| The same four methods on an anchor calibrated once on each metric, where the transformation is the identity | below 1e-14, in both coefficients, 30 common items |
 | Raju's signed and unsigned areas in closed form against quadrature | below 1e-11, over 5 item pairs, crossing and not |
 | The chi-square upper tail at published critical values, 1 to 10 degrees of freedom | below 1e-14, over 7 points from 0.001 to 0.05 |
 | Joint estimation's scale inflation on a 10-item test, against the closed form `L / (L - 1)` | 1.1123 measured against 1.1111 predicted; the marginal estimator reads 0.9968 |

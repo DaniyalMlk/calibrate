@@ -29,7 +29,7 @@ import { linspace, variance } from '../src/core/numeric.js';
 import { chiSquareUpperTail } from '../src/core/gamma.js';
 import { normalGaussHermiteRule } from '../src/core/quadrature.js';
 import { createRng } from '../src/core/random.js';
-import { makeItem, onePL, rasch, twoPL, type Item } from '../src/models/item.js';
+import { makeItem, metricScale, onePL, rasch, twoPL, type Item } from '../src/models/item.js';
 import { categoryProbabilities, graded, partialCredit } from '../src/models/polytomous.js';
 import { categoryProbabilitiesOf, type AnyItem } from '../src/models/mixed.js';
 import {
@@ -89,19 +89,31 @@ function format(value: number): string {
 
 const GRID = linspace(-4, 4, 81);
 
-/** The peak of a 2PL item's information is `a^2 / 4`, exactly. */
+/**
+ * The peak of a 2PL item's information is `(D a)^2 / 4`, exactly.
+ *
+ * Over both metrics, because `D` is the whole content of the claim: a row
+ * measured only on the logistic metric, where `D` is one, would read the same
+ * whether the information function applied the scaling or ignored it.
+ */
 function peakInformation(): Check {
   let worst = 0;
   let sets = 0;
-  for (const a of linspace(0.2, 3, 57)) {
-    for (const b of linspace(-3, 3, 13)) {
-      const item = twoPL(a, b);
-      worst = Math.max(worst, Math.abs(itemInformation(item, informationPeak(item)) - (a * a) / 4));
-      sets += 1;
+  for (const metric of ['logistic', 'normal'] as const) {
+    const d = metricScale(metric);
+    for (const a of linspace(0.2, 3, 57)) {
+      for (const b of linspace(-3, 3, 13)) {
+        const item = twoPL(a, b, metric);
+        worst = Math.max(
+          worst,
+          Math.abs(itemInformation(item, informationPeak(item)) - (d * a) ** 2 / 4),
+        );
+        sets += 1;
+      }
     }
   }
   return exact(
-    'Peak information of a 2PL item against the closed form `a^2 / 4`',
+    'Peak information of a 2PL item against the closed form `(D a)^2 / 4`, on both metrics',
     worst,
     `over ${sets.toLocaleString('en-GB')} parameter sets`,
   );
@@ -324,6 +336,56 @@ function linkingRecovery(): Check {
 }
 
 /**
+ * The four methods on an anchor whose two calibrations chose different metrics.
+ *
+ * The same thirty curves written twice — once with `D = 1.702` carried on the
+ * item and once with it multiplied into the discrimination — so the two
+ * calibrations agree about every probability and the transformation between
+ * them is the identity. The criterion methods see only curves and cannot be
+ * fooled by the convention; the moment methods read parameters, and mean/mean
+ * reads the one parameter the convention changes. It is the row that decides
+ * whether the metric is inside the ratio or outside it: with the raw
+ * discriminations averaged instead, mean/mean reports a slope of 1/1.702.
+ */
+function crossMetricLinking(): Check {
+  const known = scaleTransform(1, 0);
+  const onNormal: Item[] = Array.from({ length: 30 }, (_, index) =>
+    makeItem(`x${index}`, twoPL(0.5 + (index % 7) * 0.2, -2.2 + index * 0.15, 'normal')),
+  );
+  const onLogistic = onNormal.map((item) =>
+    makeItem(
+      item.id,
+      twoPL(metricScale('normal') * item.parameters.a, item.parameters.b, 'logistic'),
+    ),
+  );
+  const pairs = commonItems(onNormal, onLogistic);
+  let worst = 0;
+  for (const method of [meanMean, meanSigma, haebara, stockingLord]) {
+    const found = method(pairs);
+    if (!found.converged) {
+      return {
+        label: 'cross-metric linking',
+        result: '',
+        ok: false,
+        complaint: 'a method did not converge',
+      };
+    }
+    worst = Math.max(
+      worst,
+      Math.abs(found.transform.slope - known.slope),
+      Math.abs(found.transform.intercept - known.intercept),
+    );
+  }
+  return bounded(
+    'The same four methods on an anchor calibrated once on each metric, where the ' +
+      'transformation is the identity',
+    worst,
+    1e-14,
+    'in both coefficients, 30 common items',
+  );
+}
+
+/**
  * Raju's areas in closed form against numerical integration of the same curves.
  *
  * The closed form is the thing being checked; the quadrature is slow, obvious
@@ -519,6 +581,7 @@ export function measure(): readonly Check[] {
     scoreDistributionAgainstEnumeration(),
     sufficiency(),
     linkingRecovery(),
+    crossMetricLinking(),
     areaAgainstQuadrature(),
     chiSquareAgainstTables(),
     ...jointBias(),
