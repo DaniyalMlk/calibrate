@@ -217,3 +217,16 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Raju's areas measured between two calibrations that chose differently,
       the closed form read in the slope of each exponent rather than once for
       the pair, against the quadrature that reads each item's own metric
+
+## Phase 20 — Options nobody has chosen
+
+- [x] A gate over the source, parsed rather than grepped: every optional
+      property of an exported interface has to be assigned somewhere outside
+      the file that declares it, so an option that only ever gets its default
+      is reported rather than merely covered
+- [x] The survey asserted before the claim is made, since "nothing is
+      unexercised" passes trivially over an empty one
+- [x] The five options that were unexercised chosen with an assertion that the
+      choice changed something, not merely that it was accepted
+- [x] No exemption mechanism, deliberately: an option nobody will choose once
+      in a test is an option to delete
