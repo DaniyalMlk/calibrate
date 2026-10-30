@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { linspace, mean } from '../src/core/numeric.js';
+import { linspace, mean, NORMAL_METRIC_SCALE } from '../src/core/numeric.js';
 import { normalGridRule } from '../src/core/quadrature.js';
 import { createRng } from '../src/core/random.js';
 import { calibrate, toItems } from '../src/calibration/jmle.js';
-import { makeItem, threePL, twoPL } from '../src/models/item.js';
+import { makeItem, threePL, twoPL, type Item } from '../src/models/item.js';
 import {
   expectedScoreOf,
   informationOf,
@@ -15,7 +15,7 @@ import { generalizedPartialCredit, graded, partialCredit } from '../src/models/p
 import { probabilityCorrect } from '../src/models/response.js';
 import {
   commonItems,
-  discriminationParameters,
+  slopeCoefficients,
   locationParameters,
   requireCommonItems,
 } from '../src/linking/common.js';
@@ -45,6 +45,13 @@ import { simulateMatrix } from '../src/simulation/respondent.js';
 import { syntheticBank, syntheticMixedBank } from '../src/simulation/bank.js';
 
 const TRUTH = scaleTransform(1.35, -0.42);
+const SPEC_NORMAL = [
+  { id: 'n1', a: 0.7, b: -1.5 },
+  { id: 'n2', a: 1.1, b: -0.5 },
+  { id: 'n3', a: 0.9, b: 0.2 },
+  { id: 'n4', a: 1.4, b: 1.0 },
+  { id: 'n5', a: 0.8, b: 1.6 },
+];
 const GRID = linspace(-3, 3, 25);
 
 describe('the scale transformation', () => {
@@ -207,7 +214,7 @@ describe('matching common items', () => {
     const item = makePolytomousItem('p', graded(1.2, [-1, 0.5, 1.5]));
     expect(locationParameters([item])).toEqual([-1, 0.5, 1.5]);
     expect(locationParameters([a])).toEqual([0]);
-    expect(discriminationParameters([item, a])).toEqual([1.2, 1.2]);
+    expect(slopeCoefficients([item, a])).toEqual([1.2, 1.2]);
   });
 });
 
@@ -259,12 +266,50 @@ describe('exact recovery of a known transformation', () => {
     }
   });
 
+  it('leaves a single-metric anchor exactly where it was', () => {
+    // The case the scaling must not disturb. On a logistic anchor D is one and
+    // the multiplication is the identity on every float, so the coefficient is
+    // bit-for-bit the ratio of raw discriminations it has always been.
+    const sourceItems = pairs.map((pair) => pair.source);
+    const targetItems = pairs.map((pair) => pair.target);
+    expect(slopeCoefficients(sourceItems)).toEqual(
+      sourceItems.map((item) => item.parameters.a),
+    );
+    expect(meanMean(pairs).transform.slope).toBe(
+      mean(sourceItems.map((item) => item.parameters.a)) /
+        mean(targetItems.map((item) => item.parameters.a)),
+    );
+  });
+
+  it('is indifferent to which single metric that is', () => {
+    // Both anchors on the normal metric instead: D multiplies numerator and
+    // denominator alike, so the coefficient is the same to floating-point
+    // associativity and no further.
+    const onNormal = SPEC_NORMAL.map((spec) =>
+      makeItem(spec.id, twoPL(spec.a, spec.b, 'normal')),
+    );
+    const moved = transformBank(TRUTH, onNormal);
+    const normalPairs = commonItems(onNormal, moved);
+    const logisticPairs = commonItems(
+      SPEC_NORMAL.map((spec) => makeItem(spec.id, twoPL(spec.a, spec.b))),
+      transformBank(
+        TRUTH,
+        SPEC_NORMAL.map((spec) => makeItem(spec.id, twoPL(spec.a, spec.b))),
+      ),
+    );
+    expect(meanMean(normalPairs).transform.slope).toBeCloseTo(
+      meanMean(logisticPairs).transform.slope,
+      14,
+    );
+    expect(meanMean(normalPairs).transform.slope).toBeCloseTo(TRUTH.slope, 12);
+  });
+
   it('agrees with the closed forms for the moment methods', () => {
     const sourceItems = pairs.map((pair) => pair.source);
     const targetItems = pairs.map((pair) => pair.target);
 
     const meanMeanSlope =
-      mean(discriminationParameters(sourceItems)) / mean(discriminationParameters(targetItems));
+      mean(slopeCoefficients(sourceItems)) / mean(slopeCoefficients(targetItems));
     expect(meanMean(pairs).transform.slope).toBeCloseTo(meanMeanSlope, 14);
 
     const sourceLocations = locationParameters(sourceItems);
@@ -495,5 +540,64 @@ describe('linking errors', () => {
   it('rejects an unknown method name', () => {
     const pairs = commonItems([item], [item]);
     expect(() => link(pairs, 'nearest-neighbour' as never)).toThrow(/unknown linking method/);
+  });
+});
+
+describe('an anchor calibrated on two different metrics', () => {
+  // The same five curves, written twice: once on the normal metric and once on
+  // the logistic one with the discrimination multiplied by D. Nothing about the
+  // items differs except the convention their exponent is written in, so the
+  // transformation relating the two calibrations is the identity and every
+  // method has the same known right answer.
+  const SPEC = [
+    { id: 'i1', a: 0.7, b: -1.5 },
+    { id: 'i2', a: 1.1, b: -0.5 },
+    { id: 'i3', a: 0.9, b: 0.2 },
+    { id: 'i4', a: 1.4, b: 1.0 },
+    { id: 'i5', a: 0.8, b: 1.6 },
+  ];
+  const onNormal = SPEC.map((spec) => makeItem(spec.id, twoPL(spec.a, spec.b, 'normal')));
+  const onLogistic = SPEC.map((spec) =>
+    makeItem(spec.id, twoPL(NORMAL_METRIC_SCALE * spec.a, spec.b, 'logistic')),
+  );
+  const pairs = commonItems(onNormal, onLogistic);
+
+  it('is the same five curves on both sides', () => {
+    for (const theta of GRID) {
+      for (let index = 0; index < SPEC.length; index += 1) {
+        expect(probabilityCorrect((onNormal[index] as Item).parameters, theta)).toBe(
+          probabilityCorrect((onLogistic[index] as Item).parameters, theta),
+        );
+      }
+    }
+  });
+
+  it('recovers the identity under all four methods', () => {
+    for (const result of linkAll(pairs)) {
+      expect(result.transform.slope).toBeCloseTo(1, 12);
+      expect(result.transform.intercept).toBeCloseTo(0, 12);
+    }
+  });
+
+  it('reads a slope coefficient off an item of either format', () => {
+    const binary = makeItem('d', twoPL(1.2, 0, 'normal'));
+    const rubric = makePolytomousItem('p', graded(1.2, [-1, 0.5, 1.5], 'normal'));
+    expect(slopeCoefficients([binary, rubric])).toEqual([
+      NORMAL_METRIC_SCALE * 1.2,
+      NORMAL_METRIC_SCALE * 1.2,
+    ]);
+    expect(slopeCoefficients([makeItem('l', twoPL(1.2, 0))])).toEqual([1.2]);
+  });
+
+  it('would be wrong by the ratio of the two metrics if the raw discriminations were averaged', () => {
+    // What the ratio is about is the slope of the exponent, D * a, and the two
+    // sides spell that slope with different values of D. Averaging the raw `a`
+    // instead reports 1 / 1.702 — a coefficient the criterion methods, which
+    // see only the curves, contradict outright.
+    const rawRatio =
+      mean(pairs.map((pair) => (pair.source as Item).parameters.a)) /
+      mean(pairs.map((pair) => (pair.target as Item).parameters.a));
+    expect(rawRatio).toBeCloseTo(1 / NORMAL_METRIC_SCALE, 12);
+    expect(Math.abs(meanMean(pairs).transform.slope - rawRatio)).toBeGreaterThan(0.4);
   });
 });

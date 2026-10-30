@@ -62,12 +62,13 @@ against what. Here is what was measured. Every figure is produced by
 
 | Check | Result |
 | --- | --- |
-| Peak information of a 2PL item against the closed form `a^2 / 4` | 0, over 741 parameter sets |
+| Peak information of a 2PL item against the closed form `(D a)^2 / 4`, on both metrics | 0, over 1,482 parameter sets |
 | A two-category graded item against the 2PL, and two-category partial credit against Rasch | 0, over 33,048 evaluations |
 | Category probabilities summing to one, graded and partial credit | below 1e-14, over 405 evaluations |
 | The total-score distribution by recursion against enumerating every pattern | below 1e-14, over 32,768 patterns at 7 abilities |
 | Two patterns with the same total score, scored under Rasch and under the 2PL | the same ability over all 1,024 patterns, to the root-finder's tolerance and no further: below 1e-7 at its default of 1e-8, below 1e-14 when that is tightened to 1e-14. Under the 2PL the same comparison spans 2.31 logits |
 | Four linking methods recovering a transformation applied on purpose (A 1.35, B -0.42) | below 1e-14, in both coefficients, 30 common items |
+| The same four methods on an anchor calibrated once on each metric, where the transformation is the identity | below 1e-14, in both coefficients, 30 common items |
 | Raju's signed and unsigned areas in closed form against quadrature | below 1e-11, over 5 item pairs, crossing and not |
 | The chi-square upper tail at published critical values, 1 to 10 degrees of freedom | below 1e-14, over 7 points from 0.001 to 0.05 |
 | Joint estimation's scale inflation on a 10-item test, against the closed form `L / (L - 1)` | 1.1123 measured against 1.1111 predicted; the marginal estimator reads 0.9968 |
@@ -1038,6 +1039,40 @@ Test characteristic curves differed by up to 5.08 score points before linking an
 Five score points is the size of the problem: two candidates of identical
 ability, one sitting each form, would have been reported five points apart. After
 linking they are within a tenth of a point.
+
+#### When the two calibrations did not choose the same metric
+
+Item parameters mean nothing without the metric they were written on. The same
+curve is `a = 0.7` on the normal metric, where the exponent carries a factor of
+1.702, and `a = 1.1914` on the logistic metric, where it does not; both describe
+one item that behaves one way. Two calibrations of one anchor, run years apart or
+by different vendors, need not have made the same choice.
+
+The slope a linking coefficient reports is the ratio of the exponents' leading
+coefficients, `D a`, and not of the discriminations alone. Written out over the
+same curves on the two metrics, where the right answer is the identity, that is
+the difference between
+
+```
+mean-mean          1.0000   0.0000
+mean-sigma         1.0000   0.0000
+haebara            1.0000   0.0000
+stocking-lord      1.0000   0.0000
+```
+
+and a mean/mean slope of 0.5875, which is 1/1.702 and nothing else. Mean/sigma
+reads locations, which the metric does not touch; Haebara and Stocking-Lord read
+curves, which the metric does not change. Only mean/mean reads the one parameter
+the convention moves, and on a single-metric anchor the factor cancels from its
+ratio — so the mistake is invisible on every anchor that does not span two
+metrics, which is most of them.
+
+One thing still insists on a common metric: `rajuArea`, whose closed form is
+written as a single expression in both discriminations and so reads one scaling
+for the pair. It refuses a mismatched pair rather than applying the wrong
+scaling to one of them. The area itself is perfectly well defined — it is an
+area between two functions of ability, and how each was parameterised does not
+enter — so this is a limitation of the expression, not of the measure.
 
 ### Where a bank cannot measure
 

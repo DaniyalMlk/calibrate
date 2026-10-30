@@ -3,8 +3,8 @@ import { normalGridRule, type QuadratureRule } from '../core/quadrature.js';
 import { minimiseSimplex } from '../core/simplex.js';
 import { categoryProbabilitiesOf, expectedScoreOf, isPolytomous } from '../models/mixed.js';
 import {
-  discriminationParameters,
   locationParameters,
+  slopeCoefficients,
   type CommonItemPair,
 } from './common.js';
 import { scaleTransform, transformItem, type ScaleTransform } from './scale.js';
@@ -26,10 +26,12 @@ export interface LinkingResult {
 /**
  * Mean/mean linking.
  *
- * `A` is the ratio of mean discriminations and `B` places the mean location.
- * Since a target discrimination is `a / A`, averaging both sides gives
- * `A = mean(a_source) / mean(a_target)` directly, and `B` then follows from
- * `mean(b_target) = A mean(b_source) + B`.
+ * `A` is the ratio of mean slope coefficients and `B` places the mean location.
+ * Since a target slope is `D a / A`, averaging both sides gives
+ * `A = mean(D a_source) / mean(D a_target)` directly, and `B` then follows from
+ * `mean(b_target) = A mean(b_source) + B`. The metric scaling `D` is inside the
+ * ratio rather than outside it, so it cancels on a single-metric anchor and is
+ * accounted for on an anchor that spans two — see `slopeCoefficients`.
  *
  * Cheap and unbiased in the noiseless case, but the least stable of the four in
  * practice: discrimination estimates are the noisiest thing a calibration
@@ -41,7 +43,7 @@ export function meanMean(pairs: readonly CommonItemPair[]): LinkingResult {
   const targetItems = pairs.map((pair) => pair.target);
 
   const slope =
-    mean(discriminationParameters(sourceItems)) / mean(discriminationParameters(targetItems));
+    mean(slopeCoefficients(sourceItems)) / mean(slopeCoefficients(targetItems));
   const intercept =
     mean(locationParameters(targetItems)) - slope * mean(locationParameters(sourceItems));
 

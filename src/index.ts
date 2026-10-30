@@ -284,7 +284,7 @@ export {
 
 export {
   commonItems,
-  discriminationParameters,
+  slopeCoefficients,
   locationParameters,
   requireCommonItems,
   type CommonItemPair,
