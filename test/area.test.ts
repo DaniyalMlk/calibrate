@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaScan, integrateArea, rajuArea, rankByArea } from '../src/dif/area.js';
+import { NORMAL_METRIC_SCALE } from '../src/core/numeric.js';
 import { fourPL, makeItem, threePL, twoPL, type Item } from '../src/models/item.js';
 
 const item = (id: string, a: number, b: number, c = 0, d = 1): Item =>
@@ -136,10 +137,56 @@ describe('rajuArea', () => {
     );
   });
 
-  it('refuses calibrations on different metrics', () => {
-    expect(() =>
-      rajuArea(makeItem('x', twoPL(1, 0, 'logistic')), makeItem('x', twoPL(1, 0.5, 'normal'))),
-    ).toThrow(/different metrics/);
+  it('measures across two metrics against the quadrature', () => {
+    // Two calibrations that chose different conventions, and a crossing pair
+    // so the unsigned area is not merely the shift. The reference is the
+    // numerical integration of the same two curves, which reads each item's
+    // own metric and knows nothing about the closed form.
+    const pairs: ReadonlyArray<readonly [Item, Item]> = [
+      [makeItem('x', twoPL(0.6, -0.4, 'normal')), makeItem('x', twoPL(1.9, 0.5))],
+      [makeItem('x', twoPL(1.4, 0.3)), makeItem('x', twoPL(0.5, -0.8, 'normal'))],
+      [
+        makeItem('x', twoPL(0.8, 0.2, 'normal')),
+        makeItem('x', twoPL(1.1, -0.6, 'normal')),
+      ],
+      [makeItem('x', threePL(1.2, 0.1, 0.2, 'normal')), makeItem('x', threePL(2.6, -0.3, 0.2))],
+    ];
+    for (const [reference, focal] of pairs) {
+      const closed = rajuArea(reference, focal);
+      const quadrature = integrateArea(reference, focal);
+      expect(closed.signed).toBeCloseTo(quadrature.signed, 10);
+      expect(closed.unsigned).toBeCloseTo(quadrature.unsigned, 10);
+      expect(closed.unsigned).toBeGreaterThan(Math.abs(closed.signed) + 1e-6);
+    }
+  });
+
+  it('reads the same curve written twice as two translates, not two slopes', () => {
+    // The same slope expressed as `a` on the logistic metric and `a / 1.702` on
+    // the normal one. The curves are translates of each other, so they never
+    // cross and the unsigned area is the shift — which is what the equal-slope
+    // branch is for, and what comparing the raw discriminations would miss.
+    const slope = 1.3;
+    const reference = makeItem('x', twoPL(slope, -0.25));
+    const focal = makeItem('x', twoPL(slope / NORMAL_METRIC_SCALE, 0.75, 'normal'));
+    const area = rajuArea(reference, focal);
+    expect(area.crossing).toBeNull();
+    expect(area.unsigned).toBeCloseTo(1, 12);
+    expect(area.signed).toBeCloseTo(-1, 12);
+    expect(area.nonUniformShare).toBeCloseTo(0, 12);
+    // And the quadrature agrees, which is what makes the branch the right one
+    // rather than merely the one that was taken.
+    expect(integrateArea(reference, focal).unsigned).toBeCloseTo(1, 8);
+  });
+
+  it('is unchanged on a common metric', () => {
+    // The generalisation multiplies both slopes by the same constant where the
+    // metrics agree, so it factors out of every term. On the logistic metric,
+    // where that constant is one, the arithmetic is identical to the bit.
+    const reference = makeItem('x', twoPL(0.9, -0.3));
+    const focal = makeItem('x', twoPL(1.7, 0.4));
+    const area = rajuArea(reference, focal);
+    expect(area.unsigned).toBe(0.9434875624374941);
+    expect(area.crossing).toBe(1.1875000000000002);
   });
 });
 

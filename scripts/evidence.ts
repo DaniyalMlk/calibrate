@@ -29,7 +29,15 @@ import { linspace, variance } from '../src/core/numeric.js';
 import { chiSquareUpperTail } from '../src/core/gamma.js';
 import { normalGaussHermiteRule } from '../src/core/quadrature.js';
 import { createRng } from '../src/core/random.js';
-import { makeItem, metricScale, onePL, rasch, twoPL, type Item } from '../src/models/item.js';
+import {
+  makeItem,
+  metricScale,
+  onePL,
+  rasch,
+  twoPL,
+  type Item,
+  type Metric,
+} from '../src/models/item.js';
 import { categoryProbabilities, graded, partialCredit } from '../src/models/polytomous.js';
 import { categoryProbabilitiesOf, type AnyItem } from '../src/models/mixed.js';
 import {
@@ -393,17 +401,26 @@ function crossMetricLinking(): Check {
  * second opinion from the same code.
  */
 function areaAgainstQuadrature(): Check {
-  const cases: readonly (readonly [number, number, number, number])[] = [
-    [1.2, -0.5, 1.2, 0.3],
-    [0.8, 0.1, 1.6, -0.4],
-    [1.0, -1, 1.4, 1.1],
-    [1.5, 0.2, 0.9, 0.2],
-    [0.7, -1.4, 0.7, -1.4],
+  // Four of these pairs are written on one metric and four span two, because
+  // the closed form reads the slope of each exponent and a pair that agrees
+  // about the convention cannot tell whether it read that slope once for the
+  // pair or once per item. The quadrature reads each item's own metric and
+  // knows nothing about the closed form either way.
+  const cases: readonly (readonly [number, number, Metric, number, number, Metric])[] = [
+    [1.2, -0.5, 'logistic', 1.2, 0.3, 'logistic'],
+    [0.8, 0.1, 'logistic', 1.6, -0.4, 'logistic'],
+    [1.0, -1, 'logistic', 1.4, 1.1, 'logistic'],
+    [1.5, 0.2, 'logistic', 0.9, 0.2, 'logistic'],
+    [0.7, -1.4, 'logistic', 0.7, -1.4, 'logistic'],
+    [0.6, -0.4, 'normal', 1.9, 0.5, 'logistic'],
+    [1.4, 0.3, 'logistic', 0.5, -0.8, 'normal'],
+    [0.8, 0.2, 'normal', 1.1, -0.6, 'normal'],
+    [1.3, -0.25, 'logistic', 1.3 / metricScale('normal'), 0.75, 'normal'],
   ];
   let worst = 0;
-  for (const [aReference, bReference, aFocal, bFocal] of cases) {
-    const reference = makeItem('x', twoPL(aReference, bReference));
-    const focal = makeItem('x', twoPL(aFocal, bFocal));
+  for (const [aReference, bReference, first, aFocal, bFocal, second] of cases) {
+    const reference = makeItem('x', twoPL(aReference, bReference, first));
+    const focal = makeItem('x', twoPL(aFocal, bFocal, second));
     const closed = rajuArea(reference, focal);
     const numeric = integrateArea(reference, focal);
     worst = Math.max(
@@ -416,7 +433,7 @@ function areaAgainstQuadrature(): Check {
     "Raju's signed and unsigned areas in closed form against quadrature",
     worst,
     1e-11,
-    `over ${cases.length} item pairs, crossing and not`,
+    `over ${cases.length} item pairs, crossing and not, on one metric and across two`,
   );
 }
 

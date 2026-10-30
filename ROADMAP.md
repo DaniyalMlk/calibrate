@@ -214,3 +214,6 @@ tests that exercise the numerics against closed-form or published results.
       the identity and the other three methods are the reference
 - [x] The identity rows that could not see the metric — peak information
       against its closed form — measured on both metrics
+- [x] Raju's areas measured between two calibrations that chose differently,
+      the closed form read in the slope of each exponent rather than once for
+      the pair, against the quadrature that reads each item's own metric

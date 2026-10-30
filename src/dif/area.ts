@@ -62,20 +62,27 @@ function softplus(x: number): number {
 /**
  * The signed and unsigned areas between two calibrations of one item.
  *
- * The two items must already be on a common metric — that is what the linking
- * methods are for — and must share their asymptotes. Asymptotes that differ are
- * refused rather than approximated: if the two lower asymptotes are unequal the
- * curves stay a constant distance apart forever below the range, so the
- * unsigned area is infinite and no finite number describes it.
+ * The two items must share their asymptotes. Asymptotes that differ are refused
+ * rather than approximated: if the two lower asymptotes are unequal the curves
+ * stay a constant distance apart forever below the range, so the unsigned area
+ * is infinite and no finite number describes it.
+ *
+ * They need not share a metric. An area between two curves is an area between
+ * two functions of ability, and which convention each was written in does not
+ * enter the measure — only the expression, which is why this used to refuse a
+ * mismatched pair. What the closed form is in is the slope of each exponent,
+ * `D a`, and reading `D` off each item rather than once for the pair is the
+ * whole of the generalisation: on a common metric the constant factors out of
+ * every term and the arithmetic is unchanged.
+ *
+ * What the two items must still agree about is the *ability* scale, which is
+ * what the linking methods are for. Two calibrations on different ability
+ * scales produce an area, and it is the area between a curve and a rescaled
+ * copy of itself.
  */
 export function rajuArea(reference: Item, focal: Item): AreaResult {
   const first = reference.parameters;
   const second = focal.parameters;
-  if (first.metric !== second.metric) {
-    throw new RangeError(
-      `rajuArea: the calibrations are on different metrics (${first.metric} and ${second.metric})`,
-    );
-  }
   if (first.c !== second.c || first.d !== second.d) {
     throw new RangeError(
       'rajuArea: the two calibrations have different asymptotes, so the curves do not ' +
@@ -83,10 +90,12 @@ export function rajuArea(reference: Item, focal: Item): AreaResult {
     );
   }
 
-  const scale = metricScale(first.metric);
   const span = first.d - first.c;
-  const { a: aReference, b: bReference } = first;
-  const { a: aFocal, b: bFocal } = second;
+  const { b: bReference } = first;
+  const { b: bFocal } = second;
+  // The slope of each exponent, which is what the closed form is written in.
+  const aReference = metricScale(first.metric) * first.a;
+  const aFocal = metricScale(second.metric) * second.a;
   const gap = bFocal - bReference;
 
   // Normalised so an item calibrated identically twice reports +0 rather than
@@ -94,8 +103,10 @@ export function rajuArea(reference: Item, focal: Item): AreaResult {
   const rawSigned = span * -gap;
   const signed = rawSigned === 0 ? 0 : rawSigned;
 
-  // Equal discriminations: the curves are translates of each other, never
-  // cross, and the unsigned area is the shift itself.
+  // Equal slopes: the curves are translates of each other, never cross, and the
+  // unsigned area is the shift itself. Equal slopes, not equal discriminations
+  // — the same curve written on the two metrics has two discriminations and one
+  // slope, and it is the slope the geometry depends on.
   let unsigned: number;
   let crossing: number | null;
   if (aReference === aFocal) {
@@ -103,11 +114,11 @@ export function rajuArea(reference: Item, focal: Item): AreaResult {
     crossing = null;
   } else {
     const difference = aFocal - aReference;
-    // The exponent runs to infinity as the discriminations converge; softplus
-    // is what keeps the closed form usable in that limit, where it correctly
-    // tends to the equal-discrimination answer rather than to infinity.
-    const exponent = (scale * aReference * aFocal * gap) / difference;
-    const term = ((2 * difference) / (scale * aReference * aFocal)) * softplus(exponent);
+    // The exponent runs to infinity as the slopes converge; softplus is what
+    // keeps the closed form usable in that limit, where it correctly tends to
+    // the equal-slope answer rather than to infinity.
+    const exponent = (aReference * aFocal * gap) / difference;
+    const term = ((2 * difference) / (aReference * aFocal)) * softplus(exponent);
     unsigned = span * Math.abs(term - gap);
     crossing = (aReference * bReference - aFocal * bFocal) / (aReference - aFocal);
   }
