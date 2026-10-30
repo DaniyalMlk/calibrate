@@ -69,7 +69,7 @@ against what. Here is what was measured. Every figure is produced by
 | Two patterns with the same total score, scored under Rasch and under the 2PL | the same ability over all 1,024 patterns, to the root-finder's tolerance and no further: below 1e-7 at its default of 1e-8, below 1e-14 when that is tightened to 1e-14. Under the 2PL the same comparison spans 2.31 logits |
 | Four linking methods recovering a transformation applied on purpose (A 1.35, B -0.42) | below 1e-14, in both coefficients, 30 common items |
 | The same four methods on an anchor calibrated once on each metric, where the transformation is the identity | below 1e-14, in both coefficients, 30 common items |
-| Raju's signed and unsigned areas in closed form against quadrature | below 1e-11, over 5 item pairs, crossing and not |
+| Raju's signed and unsigned areas in closed form against quadrature | below 1e-11, over 9 item pairs, crossing and not, on one metric and across two |
 | The chi-square upper tail at published critical values, 1 to 10 degrees of freedom | below 1e-14, over 7 points from 0.001 to 0.05 |
 | Joint estimation's scale inflation on a 10-item test, against the closed form `L / (L - 1)` | 1.1123 measured against 1.1111 predicted; the marginal estimator reads 0.9968 |
 | Joint estimation's scale inflation on a 20-item test, against the closed form `L / (L - 1)` | 1.0495 measured against 1.0526 predicted; the marginal estimator reads 0.9933 |
@@ -1067,12 +1067,13 @@ the convention moves, and on a single-metric anchor the factor cancels from its
 ratio — so the mistake is invisible on every anchor that does not span two
 metrics, which is most of them.
 
-One thing still insists on a common metric: `rajuArea`, whose closed form is
-written as a single expression in both discriminations and so reads one scaling
-for the pair. It refuses a mismatched pair rather than applying the wrong
-scaling to one of them. The area itself is perfectly well defined — it is an
-area between two functions of ability, and how each was parameterised does not
-enter — so this is a limitation of the expression, not of the measure.
+`rajuArea` reads the same lesson. Its closed form is written in the slope of
+each exponent, and reading that slope once per item rather than once for the
+pair is the whole of what it takes to measure an area between two calibrations
+that chose differently — the constant factors out of every term where the two
+agree, so the arithmetic on a common metric is identical to the bit. The area
+was always well defined; it is an area between two functions of ability, and
+how each was parameterised does not enter. Only the expression had an opinion.
 
 ### Where a bank cannot measure
 
