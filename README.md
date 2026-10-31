@@ -113,6 +113,74 @@ the measured inflation is 1.1123, over 2,000 respondents and five seeds. The
 marginal estimator integrates ability out instead of estimating it, has no such
 term, and reads 0.9968.
 
+## Known gaps
+
+What an engine does not do is harder to find out than what it does, and reading
+the tests will not tell you: a suite says nothing about the cases nobody wrote.
+So here is the list, and `test/known-gaps.test.ts` pairs every line of it with a
+check that the thing is still missing. Building one of these breaks that test,
+which is the only way a list like this stays true — the alternative is a list of
+things that used to be absent, read as current.
+
+- **Calibration fits the Rasch model and the 2PL, and nothing else.** The
+  scoring side carries the 3PL and the 4PL, so a guessing floor can be written
+  down, scored, linked and checked for fit; what it cannot be is estimated. A
+  bank of multiple-choice items where low-ability candidates guess correctly
+  about a fifth of the time is therefore calibrated as though they did not, and
+  the difficulty of the hardest items absorbs the difference.
+- **Only dichotomous responses can be calibrated.** The polytomous half of the
+  engine scores rubrics, computes their information, selects on it, links it and
+  tests it for differential functioning, but no estimator here returns a
+  threshold and the response matrix accepts 0, 1 or missing. A mixed-format
+  bank has to arrive with its rubric parameters already estimated elsewhere.
+- **No prior on an item parameter.** Ability has a prior and three estimators
+  that use it. An item parameter has bounds instead, which are hard clamps: an
+  item answered correctly by everyone does not get a shrunk difficulty, it gets
+  the edge of the interval and a flag. That is the honest reading of a sample
+  that contains no information, and it is not the same as the mild
+  regularisation most calibration programmes apply by default.
+- **One latent dimension.** Every ability is a single number, so a test
+  measuring two correlated things reports their blend and cannot say what the
+  blend is. Nothing here will tell you that a bank is multidimensional either:
+  the fit statistics answer whether an item behaves like the others, not whether
+  the others share one trait.
+- **Responses are conditionally independent.** Items sharing a reading passage
+  violate that, and the violation inflates reliability rather than announcing
+  itself — a twelve-item passage behaves like rather fewer than twelve items,
+  while the standard error reported here assumes twelve. Nothing models a
+  testlet and nothing measures residual dependence.
+- **A missing response is one kind of missing.** The code says, at some length,
+  that an item a candidate never reached carries different information from one
+  they reached and failed. It then has one marker for both. Dropping them is the
+  right default for an omission and wrong for a test that ran out of time, and
+  the matrix cannot tell you which it is holding.
+- **No sampling error on a linking coefficient.** Four linking methods return a
+  transform, the objective at the solution and whether it converged. None
+  returns a standard error, so two banks linked on eight common items and two
+  linked on eighty produce coefficients that look equally firm, and there is no
+  bootstrap or jackknife here to separate them.
+- **No equating between forms.** `conversionTable` maps a raw score to an
+  ability on one form, and linking puts two calibrations on one metric. What is
+  missing is the step between: nothing maps a raw score on one form to the raw
+  score on another, so a programme reporting on the raw scale has to do its own
+  equating.
+- **Content balance runs on one classification at a time.** A blueprint is a map
+  from one domain label to a proportion, and selection restricts to the domain
+  furthest behind. A form that must satisfy domain and cognitive level at once,
+  or keep two items that give each other away out of the same test, cannot be
+  described — those are simultaneous constraints and want a shadow test, which
+  is a different algorithm rather than a setting.
+- **The test is adaptive item by item; there is no multistage design.** Every
+  item is chosen after the one before it, which is the most efficient thing to
+  do and the hardest to review: nobody can read a form that does not exist until
+  it is taken. The pre-assembled panels and routing rules that make a test
+  reviewable are out of scope.
+- **Nothing is timed.** No response carries a duration, so a candidate who
+  answered the last ten items in forty seconds looks exactly like one who
+  thought about them. Speededness, time limits and the response-time half of
+  aberrance detection all need that field, and the aberrance checks here work on
+  the response pattern alone.
+
 ## Installing
 
 ```bash
