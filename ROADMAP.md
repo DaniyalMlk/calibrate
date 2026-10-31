@@ -203,7 +203,7 @@ tests that exercise the numerics against closed-form or published results.
       within a quarter on the test count, because a suite cannot count itself
       from inside
 
-1174 tests across 49 files, typecheck clean.
+1179 tests across 50 files, typecheck clean.
 
 ## Phase 19 — The metric an anchor was calibrated on
 
