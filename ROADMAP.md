@@ -203,7 +203,7 @@ tests that exercise the numerics against closed-form or published results.
       within a quarter on the test count, because a suite cannot count itself
       from inside
 
-1174 tests across 49 files, typecheck clean.
+1179 tests across 50 files, typecheck clean.
 
 ## Phase 19 — The metric an anchor was calibrated on
 
@@ -230,3 +230,19 @@ tests that exercise the numerics against closed-form or published results.
       choice changed something, not merely that it was accepted
 - [x] No exemption mechanism, deliberately: an option nobody will choose once
       in a test is an option to delete
+
+## Phase 21 — What the engine does not do
+
+- [x] The known gaps written down in the README, one bullet each, saying what
+      is absent and what it costs a reader who assumed otherwise
+- [x] Every bullet paired with a predicate over the package's own surface, so
+      that closing a gap breaks the test and the line has to come out
+      deliberately rather than be left behind to be believed
+- [x] The inventory built by parsing the source rather than grepping it: the
+      prose explaining why something is absent contains the word for it, and a
+      grep would read that as the feature arriving
+- [x] The inventory asserted before any predicate reads it, since "nothing is
+      named X" passes trivially over an empty one
+- [x] Five ways to fail — a line without a predicate, a predicate without a
+      line, a list that shrinks, a bullet reduced to its lead, and a predicate
+      that stops holding — and every one of them verified by being broken
