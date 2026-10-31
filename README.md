@@ -17,7 +17,7 @@ page comes from the same gate as the table below.
 
 ## Status
 
-Phases 1 to 17 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
+Phases 1 to 21 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
 An adaptive test runs end to end — `npm run demo` administers one against a
 synthetic bank and prints the transcript — `npm run study` compares selection
 policies over a simulated population, `npm run fit` estimates item parameters
