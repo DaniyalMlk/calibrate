@@ -203,7 +203,7 @@ tests that exercise the numerics against closed-form or published results.
       within a quarter on the test count, because a suite cannot count itself
       from inside
 
-1188 tests across 51 files, typecheck clean.
+1214 tests across 52 files, typecheck clean.
 
 ## Phase 19 — The metric an anchor was calibrated on
 
@@ -261,3 +261,17 @@ tests that exercise the numerics against closed-form or published results.
       named two that never existed
 - [x] The README's command count read off the command table, which it had
       fallen one behind
+
+## Phase 23 — Every type a public signature mentions can be named
+
+- [x] A gate walking each root export's declaration — signatures, fields,
+      aliases, annotations, `extends` and `implements` — and not bodies,
+      initialisers or private members, failing on any type it reaches that
+      the root does not export
+- [x] Nothing missing when it was written, so the probe was shown to see the
+      thing it is for: a type removed from the root is reported from every
+      declaration that names it
+- [x] The probe's own rules tested against source written for each, since the
+      engine's source does not use every construct the probe has a branch for
+- [x] `asDichotomous` removed: exported from its module, absent from the root,
+      and called nowhere
