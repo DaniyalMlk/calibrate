@@ -282,7 +282,11 @@ npx ${esc(PACKAGE)} dif         # items behaving differently for two groups</cod
   under both names, so <code>npx ${esc(PACKAGE)}</code> resolves. Node 20.19 or
   newer. The package ships compiled JavaScript and type declarations, exports
   ${size.exports} names and has no runtime dependencies.</p>
-  <pre><code>import { graded, estimateEap, maximumInformationSelector } from "${esc(PACKAGE)}";</code></pre>
+  <pre><code>import {
+  graded,
+  estimateEap,
+  maximumInformationSelector,
+} from "${esc(PACKAGE)}";</code></pre>
   <p class="aside">It is not on the registry yet, so the install line above
   takes it from the repository and builds it on the way in. Once it is
   published that line becomes <code>npm install ${esc(PACKAGE)}</code>; to work
