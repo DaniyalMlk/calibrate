@@ -17,7 +17,7 @@ page comes from the same gate as the table below.
 
 ## Status
 
-Phases 1 to 21 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
+Phases 1 to 22 of [ROADMAP.md](ROADMAP.md) are complete, bar the publish itself.
 An adaptive test runs end to end — `npm run demo` administers one against a
 synthetic bank and prints the transcript — `npm run study` compares selection
 policies over a simulated population, `npm run fit` estimates item parameters
@@ -183,17 +183,22 @@ things that used to be absent, read as current.
 
 ## Installing
 
+**It is not on the registry yet**, so `npm install calibrate-irt` does not
+work today. Install it from this repository instead, which builds it on the way
+in:
+
 ```bash
-npm install calibrate-irt
+npm install github:DaniyalMlk/calibrate
 ```
 
-The package is `calibrate-irt`; `calibrate` on the registry is an unrelated
-project. The import name follows the package, and the command line is installed
-under both names:
+Once it is published the line becomes `npm install calibrate-irt`. The package
+is `calibrate-irt`; `calibrate` on the registry is an unrelated project. The
+import name follows the package, and the command line is installed under both
+names:
 
 ```bash
 npx calibrate-irt demo      # or `calibrate demo`, once installed
-calibrate <command> --help  # the options of one command, not all eight
+calibrate <command> --help  # the options of one command, not all nine
 ```
 
 It has no runtime dependencies, ships its own type declarations, and needs
