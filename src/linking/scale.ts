@@ -1,5 +1,5 @@
 import { requireFinite } from '../core/numeric.js';
-import { makeItem, validateItemParameters, type Item, type ItemParameters } from '../models/item.js';
+import { makeItem, validateItemParameters, type ItemParameters } from '../models/item.js';
 import { isPolytomous, makePolytomousItem, type AnyItem } from '../models/mixed.js';
 import { validatePolytomousParameters, type PolytomousParameters } from '../models/polytomous.js';
 
@@ -167,12 +167,4 @@ export function describeTransform(transform: ScaleTransform): string {
     `theta* = ${transform.slope.toFixed(4)} theta ` +
     `${sign} ${Math.abs(transform.intercept).toFixed(4)}`
   );
-}
-
-/** A dichotomous item, narrowed. Used where a caller knows the format. */
-export function asDichotomous(item: AnyItem): Item {
-  if (isPolytomous(item)) {
-    throw new RangeError(`item "${item.id}" is polytomous`);
-  }
-  return item;
 }
