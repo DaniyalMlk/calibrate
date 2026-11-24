@@ -66,11 +66,17 @@ describe('the published manifest', () => {
     expect(manifest.engines['node']).toBe('>=20.19.0');
   });
 
-  it('publishes publicly and builds on pack', () => {
+  it('publishes publicly and builds on pack and on a git install', () => {
     expect(manifest.publishConfig['access']).toBe('public');
-    // prepack, not prepublishOnly: `npm pack` has to rebuild too, or a stale
-    // dist from someone's working copy is what ships.
-    expect(manifest.scripts['prepack']).toBe('npm run build');
+    // prepare, which npm runs on `npm pack` and `npm publish` -- so a stale
+    // dist from someone's working copy is not what ships -- and also when the
+    // package is installed as a git dependency. prepack covers the first two
+    // and not the third: `npm install github:DaniyalMlk/calibrate` then
+    // succeeded and installed a package with no dist in it at all.
+    expect(manifest.scripts['prepare']).toBe('npm run build');
+    // Both would build twice on every pack.
+    expect(manifest.scripts['prepack']).toBeUndefined();
+    expect(manifest.scripts['prepublishOnly']).toBeUndefined();
   });
 
   it('has no runtime dependencies', () => {
