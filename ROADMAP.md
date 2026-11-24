@@ -203,7 +203,7 @@ tests that exercise the numerics against closed-form or published results.
       within a quarter on the test count, because a suite cannot count itself
       from inside
 
-1179 tests across 50 files, typecheck clean.
+1188 tests across 51 files, typecheck clean.
 
 ## Phase 19 — The metric an anchor was calibrated on
 
@@ -246,3 +246,18 @@ tests that exercise the numerics against closed-form or published results.
 - [x] Five ways to fail — a line without a predicate, a predicate without a
       line, a list that shrinks, a bullet reduced to its lead, and a predicate
       that stops holding — and every one of them verified by being broken
+
+## Phase 22 — What a reader copies
+
+- [x] A git install builds the package: `prepare` replaces `prepack`, because
+      npm runs `prepare` and not `prepack` for a git dependency, and
+      `npm install github:DaniyalMlk/calibrate` had been installing a package
+      with no `dist` in it
+- [x] The install lines in the README and on the front page give a command
+      that works today, read against the release checkbox in phase 16 so that
+      they fail in both directions and turn over when the release is ticked
+- [x] Every name an example imports from the package checked against its
+      exports, on the README and on the front page — the page's import line
+      named two that never existed
+- [x] The README's command count read off the command table, which it had
+      fallen one behind
